@@ -1,0 +1,44 @@
+# User Taste Preferences
+- Uses TypeScript with strict mode across all packages. Confidence: 0.95
+- Uses npm workspaces for monorepo management. Confidence: 0.95
+- Uses Node.js as runtime for daemon and relay server (uses Node APIs like `node:crypto`, `node:fs`, `node:path`). Confidence: 0.95
+- Uses vitest for unit and integration testing. Confidence: 0.9
+- Prefers monorepo with a shared package (`@remotecmd/shared`) for protocol, crypto, and utilities consumed by all other packages. Confidence: 0.95
+- Prefers cloud relay connectivity over LAN — both phone and desktop dial OUT to a relay server, no port forwarding needed. Confidence: 0.9
+- Prefers PWA for mobile UI over native app — one codebase, installable via "Add to Home Screen". Confidence: 0.9
+- Prefers self-hostable relay server over a managed service. Confidence: 0.9
+- Prefers `node-pty` for cross-platform PTY/shell support (ConPTY on Windows 1809+). Confidence: 0.9
+- Prefers keeping sessions alive on the daemon side (PTYs outlive phone disconnects) with scrollback ring buffer for reconnect replay. Confidence: 0.9
+- Prefers comprehensive test coverage including real subprocess tests (actual PTY spawn, shell echo). Confidence: 0.95
+- Uses Zod for protocol validation at message boundaries. Confidence: 0.95
+- Prefers end-to-end integration tests with real WebSocket connections over mocked stacks. Confidence: 0.9
+- Prefers adding targeted debug instrumentation (console.log, HTTP debug endpoints) when troubleshooting rather than building extensive logging infrastructure upfront. Confidence: 0.85
+- Uses `@xterm/xterm` + `@xterm/addon-fit` for terminal rendering in the PWA. Confidence: 0.95
+- Uses `tweetnacl` for E2E crypto (X25519 key agreement, NaCl secretbox). Confidence: 0.9
+- Uses `better-sqlite3` for relay's device/token registry (WAL mode). Confidence: 0.9
+- Uses `fastify` for relay HTTP server (with `@fastify/static` for serving PWA). Confidence: 0.9
+- Uses `commander` for daemon and relay CLI. Confidence: 0.9
+- Uses `vite` + `vite-plugin-pwa` for the web PWA build. Confidence: 0.9
+- Develops on Windows (paths like `D:\ExperimentalPocs\remotecmd`). Avoids Unix-specific shell idioms (`tail`, `;` chains). Confidence: 0.95
+- NODE_ENV is set to `production` on this machine, causing npm to skip devDependencies by default. Must use `npm install --include=dev` explicitly. Confidence: 0.95
+- Commander resolution can be shadowed by transitive nested `node_modules` (e.g. vite bundling its own copy). Each package must directly declare its CLI dependencies. Confidence: 0.9
+- Background task output (`run_in_background: true`) may not be captured in log files — prefers foreground execution for seeing immediate output during debugging. Confidence: 0.85
+- Prefers writing dedicated Node.js scripts to manage and verify complex multi-process setups (e.g. `scripts/run-e2e.mjs`). Confidence: 0.9
+- Prefers HTTP debug endpoints over raw DB inspection scripts. Confidence: 0.85
+- Fixes issues incrementally: identify root cause, apply minimal fix, rebuild and re-run. Avoids large refactors for isolated bugs. Confidence: 0.9
+- Writes a README with explicit run commands for each setup mode (Docker, self-hosted Node, development). Confidence: 0.95
+- Provides Dockerfile with multi-stage build for the relay. Confidence: 0.9
+- Sets up GitHub Actions CI with matrix strategy covering multiple Node versions and OS platforms. Confidence: 0.9
+- Uses Zod discriminated unions (`z.discriminatedUnion`) for protocol message types. Confidence: 0.9
+- Uses `noUncheckedIndexedAccess` in tsconfig for array access safety. Confidence: 0.85
+- Prefers explicit cleanup functions returned from `useEffect` in React over effect-aggregation patterns. Confidence: 0.85
+- Prefers `storeToken` / `storeDaemonToken` as separate methods to avoid `INSERT OR REPLACE` with UNIQUE constraint conflicts (same token hash for different roles). Confidence: 0.9
+- When handing off a running app, wants the agent to actually start the servers/services AND provide exact copy-paste terminal commands to run them independently later. Confidence: 0.75
+- Prefers hands-on verification of user-facing flows before claiming success — e.g. driving a browser emulator as the "phone" (agent-browser) to walk through pairing/QR flows and screenshot the results. Confidence: 0.75
+- For open-source projects, demands radically simple onboarding: a single command to start (`npx <tool>`), automatic detection (e.g. LAN IPs for QR URLs), QR-code pairing printed in the terminal, and idempotent re-runs. Explicitly rejected multi-step manual setup as "so confusing, it's hard for the user to start". Confidence: 0.9
+- Ships server software through two canonical distribution channels: an npx one-liner and a runnable Docker container (`docker run` + compose file), bundling any web UI into the npm packages so users need zero extra configuration. Confidence: 0.85
+- Builds tools he intends to open-source with a companion hosted service he operates himself — tools should support both a local/LAN mode and a `connect`-style hosted mode pointing at his public server (via a `DEFAULT_HOSTED_RELAY`-style constant that's easy to change before publishing). Confidence: 0.8
+- Publishes open-source tools to the public npm registry so `npx <tool>` works for end users — GitHub alone is not a distribution channel to him. Release workflow: workspace-scoped `npm publish -w packages/<pkg>`, `--access public` for scoped packages, concrete `^x.y.z` versions replacing workspace `*` deps, and dry-run verification before the real publish. Confidence: 0.8
+- GitHub account/repo: `rvenky125/rcmdsh` — used for repository/bugs/homepage metadata and GHCR image paths. Confidence: 0.9
+- Delegates release/publishing mechanics to the agent (metadata prep, npm name availability checks, tarball dry-runs) and handles only the interactive authentication steps himself (`npm login` browser/2FA flow). Confidence: 0.7
+- Willingly pastes secrets (npm automation tokens, etc.) directly into chat for the agent to use, without flagging them as sensitive. Confidence: 0.8

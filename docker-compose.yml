@@ -1,0 +1,13 @@
+services:
+  relay:
+    build: .
+    # or use a published image:
+    # image: ghcr.io/yourname/rcmdsh-relay:latest
+    ports:
+      - "8787:8787"
+    volumes:
+      - relay-data:/data
+    restart: unless-stopped
+
+volumes:
+  relay-data:

@@ -1,0 +1,15 @@
+node_modules
+dist
+public
+packages/*/dist
+packages/*/public
+*.db
+*.db-shm
+*.db-wal
+e2e-daemon-home
+.git
+.github
+.commandcode
+*.log
+*.png
+README.md

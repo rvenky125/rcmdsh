@@ -1,0 +1,51 @@
+{
+  "name": "rcmdsh",
+  "version": "0.1.1",
+  "description": "Control your computer's shell from your phone - one command, one QR code",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvenky125/rcmdsh.git",
+    "directory": "packages/daemon"
+  },
+  "bugs": {
+    "url": "https://github.com/rvenky125/rcmdsh/issues"
+  },
+  "homepage": "https://github.com/rvenky125/rcmdsh#readme",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "rcmdsh": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "public"
+  ],
+  "keywords": [
+    "terminal",
+    "remote",
+    "mobile",
+    "shell",
+    "pwa",
+    "qr"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@rcmdsh/relay": "^0.1.1",
+    "@rcmdsh/shared": "^0.1.1",
+    "commander": "^13.0.0",
+    "node-pty": "^1.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/qrcode-terminal": "^0.12.0",
+    "@types/ws": "^8.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

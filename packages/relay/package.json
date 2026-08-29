@@ -1,0 +1,52 @@
+{
+  "name": "@rcmdsh/relay",
+  "version": "0.1.1",
+  "description": "rcmdsh relay - bridges paired phones and desktops (self-hostable via npx or Docker)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvenky125/rcmdsh.git",
+    "directory": "packages/relay"
+  },
+  "bugs": {
+    "url": "https://github.com/rvenky125/rcmdsh/issues"
+  },
+  "homepage": "https://github.com/rvenky125/rcmdsh#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "rcmdsh-relay": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "public"
+  ],
+  "keywords": [
+    "relay",
+    "websocket",
+    "self-hosted",
+    "rcmdsh"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.0.0",
+    "@rcmdsh/shared": "^0.1.1",
+    "better-sqlite3": "^12.0.0",
+    "commander": "^13.0.0",
+    "fastify": "^5.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

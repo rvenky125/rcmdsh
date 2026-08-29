@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.env
+*.db
+*.db-journal
+rcmdsh-relay.db*
+.vite/
+dev-dist/
+packages/daemon/public/
+packages/relay/public/
+e2e-daemon-home/
+e2e-relay.db*
