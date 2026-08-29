@@ -1,4 +1,4 @@
-# @rcmdsh/relay
+# rcmdsh-relay
 
 The relay server for [rcmdsh](https://github.com/rvenky125/rcmdsh) — pairs phones with computers and routes end-to-end-encrypted terminal traffic. It never sees shell contents.
 

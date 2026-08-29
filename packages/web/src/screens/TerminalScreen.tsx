@@ -1,4 +1,4 @@
-import { bytesToB64, type DaemonToClientMessage } from "@rcmdsh/shared";
+import { bytesToB64, type DaemonToClientMessage } from "rcmdsh-core";
 import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";

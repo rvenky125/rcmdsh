@@ -13,7 +13,7 @@
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
     "paths": {
-      "@rcmdsh/shared": ["../shared/src/index.ts"]
+      "rcmdsh-core": ["../shared/src/index.ts"]
     }
   },
   "include": ["src"]

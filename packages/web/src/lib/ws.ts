@@ -11,7 +11,7 @@ import {
   type ClientToDaemonMessage,
   type DaemonToClientMessage,
   type EncryptedFrame,
-} from "@rcmdsh/shared";
+} from "rcmdsh-core";
 import { clientKeyPairFrom, relayWsUrl, type PairingState } from "./store";
 
 export interface ConnectionStatus {

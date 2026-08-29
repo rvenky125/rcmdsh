@@ -4,7 +4,7 @@ import path from "node:path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@rcmdsh/shared": path.resolve(process.cwd(), "packages/shared/src/index.ts"),
+      "rcmdsh-core": path.resolve(process.cwd(), "packages/shared/src/index.ts"),
     },
   },
   test: {

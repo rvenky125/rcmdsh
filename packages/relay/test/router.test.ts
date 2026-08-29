@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
-import { frame } from "@rcmdsh/shared";
+import { frame } from "rcmdsh-core";
 import { startRelay, type RelayHandle } from "../src/server";
 import { Registry } from "../src/registry";
 

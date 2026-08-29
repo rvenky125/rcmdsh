@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import crypto from "node:crypto";
-import { generateToken } from "@rcmdsh/shared";
+import { generateToken } from "rcmdsh-core";
 
 const PAIRING_TTL_MS = 5 * 60 * 1000;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

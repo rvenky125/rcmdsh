@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DaemonToClientMessage, SessionInfo, ShellInfo } from "@rcmdsh/shared";
+import type { DaemonToClientMessage, SessionInfo, ShellInfo } from "rcmdsh-core";
 import { clearPairing, loadPairing, type PairingState } from "./lib/store";
 import { RelaySocket, type ConnectionStatus } from "./lib/ws";
 import { PairScreen } from "./screens/PairScreen";

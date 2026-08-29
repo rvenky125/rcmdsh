@@ -53,7 +53,7 @@ jobs:
         run: npm install --include=dev
 
       - name: Build
-        run: npm run build -w @rcmdsh/shared && npm run build -w @rcmdsh/relay
+        run: npm run build -w rcmdsh-core && npm run build -w rcmdsh-relay
 
       - name: Run relay integration tests
         run: npm test -- --project packages/relay

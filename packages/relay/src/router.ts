@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
-import { frame, parseJson, RelayHello, RelayWelcome, RelayError } from "@rcmdsh/shared";
+import { frame, parseJson, RelayHello, RelayWelcome, RelayError } from "rcmdsh-core";
 import type { Registry } from "./registry";
 
 const AUTH_TIMEOUT_MS = 10_000;

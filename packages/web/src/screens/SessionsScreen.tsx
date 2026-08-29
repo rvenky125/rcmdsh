@@ -1,4 +1,4 @@
-import type { SessionInfo, ShellInfo } from "@rcmdsh/shared";
+import type { SessionInfo, ShellInfo } from "rcmdsh-core";
 import type { RelaySocket } from "../lib/ws";
 import type { ConnectionStatus } from "../lib/ws";
 

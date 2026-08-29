@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { startRelay } from "@rcmdsh/relay/dist/server";
+import { startRelay } from "rcmdsh-relay/dist/server";
 import { loadConfig, saveConfig, getConfigDir } from "./config";
 import { SHELL_CATALOG, allowedShellsForPlatform } from "./pty/shells";
 import { DaemonApp } from "./app";

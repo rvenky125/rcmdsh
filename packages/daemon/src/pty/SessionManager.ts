@@ -1,6 +1,6 @@
 import * as nodePty from "node-pty";
 import os from "node:os";
-import { randomId } from "@rcmdsh/shared";
+import { randomId } from "rcmdsh-core";
 import type { ShellDef } from "./shells";
 
 const SCROLLBACK_BYTES = 128 * 1024;

@@ -1,14 +1,14 @@
 {
   "name": "rcmdsh",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Control any command prompt on your computer from your phone",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @rcmdsh/shared && npm run build -w rcmdsh && npm run build -w @rcmdsh/relay && npm run build -w @rcmdsh/web && node scripts/copy-web-dist.mjs",
-    "build:node": "npm run build -w @rcmdsh/shared && npm run build -w rcmdsh && npm run build -w @rcmdsh/relay",
+    "build": "npm run build -w rcmdsh-core && npm run build -w rcmdsh && npm run build -w rcmdsh-relay && npm run build -w @rcmdsh/web && node scripts/copy-web-dist.mjs",
+    "build:node": "npm run build -w rcmdsh-core && npm run build -w rcmdsh && npm run build -w rcmdsh-relay",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p packages/daemon && tsc --noEmit -p packages/relay"

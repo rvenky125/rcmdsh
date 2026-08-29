@@ -7,7 +7,7 @@ import {
   utf8Bytes,
   type ClientToDaemonMessage,
   type DaemonToClientMessage,
-} from "@rcmdsh/shared";
+} from "rcmdsh-core";
 import type { DaemonConfig } from "./config";
 import { getKeyPair } from "./config";
 import { allowedShellsForPlatform } from "./pty/shells";

@@ -122,9 +122,9 @@ Repo layout:
 
 ```
 packages/
-  shared/   @rcmdsh/shared — protocol (zod), NaCl crypto, framing
+  shared/   rcmdsh-core   — protocol (zod), NaCl crypto, framing
   daemon/   rcmdsh         — CLI, node-pty sessions, pairing, embedded relay
-  relay/    @rcmdsh/relay  — Fastify + WebSocket bridge, SQLite registry, PWA hosting
+  relay/    rcmdsh-relay   — Fastify + WebSocket bridge, SQLite registry, PWA hosting
   web/      PWA            — React + xterm.js + vite-plugin-pwa
 ```
 

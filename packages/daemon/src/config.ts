@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { b64ToBytes, bytesToB64, generateKeyPair } from "@rcmdsh/shared";
+import { b64ToBytes, bytesToB64, generateKeyPair } from "rcmdsh-core";
 
 export interface PairedDevice {
   clientId: string;

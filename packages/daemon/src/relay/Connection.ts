@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { frame, parseJson, RelayHello, RelayReject, RelayRoute, RelayWelcome } from "@rcmdsh/shared";
+import { frame, parseJson, RelayHello, RelayReject, RelayRoute, RelayWelcome } from "rcmdsh-core";
 
 export interface RelayConnectionOptions {
   relayUrl: string;

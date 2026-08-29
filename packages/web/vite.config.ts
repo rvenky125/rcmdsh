@@ -33,7 +33,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@rcmdsh/shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
+      "rcmdsh-core": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
     },
   },
   server: {

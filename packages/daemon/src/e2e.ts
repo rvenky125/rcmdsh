@@ -7,7 +7,7 @@ import {
   randomId,
   seal,
   utf8Bytes,
-} from "@rcmdsh/shared";
+} from "rcmdsh-core";
 
 export function daemonKeyForClient(daemonSecret: Uint8Array, clientPubKeyB64: string): Uint8Array {
   const shared = deriveSharedSecret(daemonSecret, b64ToBytes(clientPubKeyB64));

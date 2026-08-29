@@ -1,4 +1,4 @@
-import { bytesToB64, b64ToBytes, generateKeyPair } from "@rcmdsh/shared";
+import { bytesToB64, b64ToBytes, generateKeyPair } from "rcmdsh-core";
 
 export interface PairingState {
   relay: string;
