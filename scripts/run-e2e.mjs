@@ -9,8 +9,11 @@ const RELAY_DB = join(ROOT, "e2e-relay.db");
 const DEV_TOKEN = "rcm_dev_local_token";
 const DAEMON_TOKEN = DEV_TOKEN;
 const CLIENT_TOKEN = DEV_TOKEN;
-const RELAY_URL = "http://127.0.0.1:8787";
-const RELAY_WS = "ws://127.0.0.1:8787";
+// Override with RCMDSH_E2E_PORT when 8787 is already in use (e.g. a relay you
+// are running manually).
+const PORT = Number(process.env.RCMDSH_E2E_PORT ?? 8787);
+const RELAY_URL = `http://127.0.0.1:${PORT}`;
+const RELAY_WS = `ws://127.0.0.1:${PORT}`;
 const DAEMON_HOME = join(ROOT, "e2e-daemon-home");
 
 let relayProc = null;
@@ -53,7 +56,7 @@ async function startRelay() {
   return new Promise((resolve, reject) => {
     const child = spawn("node", [
       join(ROOT, "packages", "relay", "dist", "index.js"),
-      "--port", "8787",
+      "--port", String(PORT),
       "--db", RELAY_DB,
       "--web", join(ROOT, "packages", "web", "dist"),
       "--dev-token", DEV_TOKEN,

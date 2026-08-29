@@ -256,6 +256,43 @@ label input:focus {
   font-size: 0.8rem;
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: #7c8db0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toggle input {
+  accent-color: #4f8cff;
+  width: 1rem;
+  height: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge.bridge {
+  background: #1d3a2a;
+  color: #6fe0a8;
+}
+
+.badge.pty {
+  background: #1c2a44;
+  color: #7c8db0;
+}
+
 /* ---- terminal screen ---- */
 
 .terminal-screen {

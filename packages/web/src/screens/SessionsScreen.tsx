@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SessionInfo, ShellInfo } from "rcmdsh-core";
 import type { RelaySocket } from "../lib/ws";
 import type { ConnectionStatus } from "../lib/ws";
@@ -8,13 +9,18 @@ interface SessionsScreenProps {
   status: ConnectionStatus;
   sessions: SessionInfo[];
   shells: ShellInfo[];
-  onCreate: (shell: string) => void;
+  onCreate: (shell: string, visible: boolean) => void;
   onOpen: (sessionId: string) => void;
   onUnpair: () => void;
 }
 
 function formatTime(createdAt: number): string {
   return new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function originLabel(session: SessionInfo): string {
+  if (session.origin === "bridge") return "window";
+  return "background";
 }
 
 export function SessionsScreen({
@@ -27,11 +33,12 @@ export function SessionsScreen({
   onOpen,
   onUnpair,
 }: SessionsScreenProps) {
+  const [visible, setVisible] = useState(true);
   const alive = sessions.filter((s) => s.alive);
   const dead = sessions.filter((s) => !s.alive);
 
   const create = (shell: string) => {
-    onCreate(shell);
+    onCreate(shell, visible);
   };
 
   return (
@@ -51,6 +58,14 @@ export function SessionsScreen({
 
       <section>
         <h2>New session</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={visible}
+            onChange={(e) => setVisible(e.target.checked)}
+          />
+          <span>open a window on the computer</span>
+        </label>
         {shells.length === 0 ? (
           <p className="muted">
             {status.daemonOnline ? "loading shells..." : "your computer is not connected"}
@@ -75,9 +90,12 @@ export function SessionsScreen({
             {alive.map((session) => (
               <li key={session.id} className="session-card" onClick={() => onOpen(session.id)}>
                 <div className="session-main">
-                  <span className="session-title">{session.title}</span>
+                  <span className="session-title">
+                    {session.title} <span className={`badge ${session.origin}`}>{originLabel(session)}</span>
+                  </span>
                   <span className="session-meta">
                     {session.shell} · since {formatTime(session.createdAt)}
+                    {session.pid != null ? ` · pid ${session.pid}` : ""}
                   </span>
                 </div>
                 <button

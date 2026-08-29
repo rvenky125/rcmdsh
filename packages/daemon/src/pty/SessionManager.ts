@@ -14,7 +14,7 @@ export class UnknownSessionError extends Error {
   }
 }
 
-class Scrollback {
+export class Scrollback {
   private chunks: string[] = [];
   private total = 0;
 
@@ -34,6 +34,36 @@ class Scrollback {
   }
 }
 
+export class OutputBatcher {
+  private pending: string[] = [];
+  private timer: NodeJS.Timeout | null = null;
+
+  constructor(
+    private readonly flush: (blob: string) => void,
+    private readonly delayMs: number = OUTPUT_FLUSH_MS,
+  ) {}
+
+  push(data: string): void {
+    this.pending.push(data);
+    if (this.timer === null) {
+      this.timer = setTimeout(() => this.flushNow(), this.delayMs);
+    }
+  }
+
+  flushNow(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    if (this.pending.length === 0) return;
+    const blob = this.pending.join("");
+    this.pending = [];
+    if (blob.length > 0) {
+      this.flush(blob);
+    }
+  }
+}
+
 export interface SessionEvents {
   onOutput(sessionId: string, data: string): void;
   onExit(sessionId: string, exitCode: number | null): void;
@@ -45,19 +75,35 @@ export interface SessionSummary {
   title: string;
   createdAt: number;
   alive: boolean;
+  origin: "pty" | "bridge";
+  pid: number | null;
 }
 
-export class Session {
+export interface SessionHandle {
   readonly id: string;
   readonly shellId: string;
   readonly title: string;
   readonly createdAt: number;
+  alive: boolean;
+  exitCode: number | null;
+  write(data: string): void;
+  resize(cols: number, rows: number): void;
+  kill(): void;
+  replay(): string;
+  summary(): SessionSummary;
+}
+
+export class Session implements SessionHandle {
+  readonly id: string;
+  readonly shellId: string;
+  readonly title: string;
+  readonly createdAt: number;
+  readonly pid: number | null;
   alive = true;
   exitCode: number | null = null;
 
   private readonly scrollback = new Scrollback();
-  private pending: string[] = [];
-  private flushTimer: NodeJS.Timeout | null = null;
+  private readonly batcher: OutputBatcher;
 
   constructor(
     id: string,
@@ -69,15 +115,17 @@ export class Session {
     this.shellId = shellId;
     this.title = shellId;
     this.createdAt = Date.now();
+    this.pid = typeof process.pid === "number" ? process.pid : null;
+    this.batcher = new OutputBatcher((blob) => this.events.onOutput(this.id, blob));
 
     this.process.onData((data) => {
       this.scrollback.push(data);
-      this.queueOutput(data);
+      this.batcher.push(data);
     });
     this.process.onExit(({ exitCode }) => {
       this.alive = false;
       this.exitCode = exitCode;
-      this.flushNow();
+      this.batcher.flushNow();
       this.events.onExit(this.id, exitCode);
     });
   }
@@ -119,27 +167,9 @@ export class Session {
       title: this.title,
       createdAt: this.createdAt,
       alive: this.alive,
+      origin: "pty",
+      pid: this.pid,
     };
-  }
-
-  private queueOutput(data: string): void {
-    this.pending.push(data);
-    if (this.flushTimer === null) {
-      this.flushTimer = setTimeout(() => this.flushNow(), OUTPUT_FLUSH_MS);
-    }
-  }
-
-  private flushNow(): void {
-    if (this.flushTimer !== null) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    if (this.pending.length === 0) return;
-    const blob = this.pending.join("");
-    this.pending = [];
-    if (blob.length > 0) {
-      this.events.onOutput(this.id, blob);
-    }
   }
 }
 
@@ -149,7 +179,7 @@ export interface CreateOptions {
 }
 
 export class SessionManager {
-  private readonly sessions = new Map<string, Session>();
+  private readonly sessions = new Map<string, SessionHandle>();
 
   constructor(private readonly events: SessionEvents) {}
 
@@ -173,7 +203,18 @@ export class SessionManager {
     return session;
   }
 
-  get(id: string): Session {
+  register(handle: SessionHandle): void {
+    if (this.aliveCount() >= MAX_SESSIONS) {
+      throw new Error("too many active sessions");
+    }
+    this.sessions.set(handle.id, handle);
+  }
+
+  unregister(id: string): void {
+    this.sessions.delete(id);
+  }
+
+  get(id: string): SessionHandle {
     const session = this.sessions.get(id);
     if (!session) throw new UnknownSessionError(id);
     return session;
@@ -218,7 +259,7 @@ export class SessionManager {
   }
 
   private evictOldestDead(): void {
-    let oldest: Session | null = null;
+    let oldest: SessionHandle | null = null;
     for (const session of this.sessions.values()) {
       if (!session.alive && (oldest === null || session.createdAt < oldest.createdAt)) {
         oldest = session;

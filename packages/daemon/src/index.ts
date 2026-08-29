@@ -2,20 +2,27 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { startRelay } from "rcmdsh-relay/dist/server";
 import { loadConfig, saveConfig, getConfigDir } from "./config";
 import { SHELL_CATALOG, allowedShellsForPlatform } from "./pty/shells";
 import { DaemonApp } from "./app";
+import { runAttach } from "./attach/AttachClient";
+import { Tui } from "./tui/Tui";
 import { pairWithRelay, isPairedFor, normalizeRelayBase, httpBase } from "./pair";
 import { detectLanIp, lanIpCandidates } from "./net";
 
-const VERSION = "0.1.1";
+const VERSION = "0.2.0";
 const DEFAULT_HOSTED_RELAY = "https://relay.rcmdsh.app";
 const DEFAULT_PORT = 8787;
 
 type Logger = (message: string) => void;
 
 const program = new Command();
+// The root program and subcommands both declare flags like --relay; without
+// this, the root parser consumes `--relay <url>` even when it appears after a
+// subcommand name (e.g. `rcmdsh start --relay ...`).
+program.enablePositionalOptions();
 
 program
   .name("rcmdsh")
@@ -25,11 +32,18 @@ program
   .option("--port <number>", "port for the built-in relay (LAN mode)", String(DEFAULT_PORT))
   .option("--name <name>", "name for this computer")
   .option("--lan <ip>", "override the LAN IP shown in the QR code")
-  .action(async (options: { relay?: string; port: string; name?: string; lan?: string }) => {
+  .option("--no-tui", "disable the interactive session screen in this terminal")
+  .action(async (options: { relay?: string; port: string; name?: string; lan?: string; noTui?: boolean }) => {
     await runDefault(options);
   });
 
-async function runDefault(options: { relay?: string; port: string; name?: string; lan?: string }): Promise<void> {
+async function runDefault(options: {
+  relay?: string;
+  port: string;
+  name?: string;
+  lan?: string;
+  noTui?: boolean;
+}): Promise<void> {
   const log = makeLogger();
   const config = loadConfig();
   if (options.name) {
@@ -76,7 +90,7 @@ async function runDefault(options: { relay?: string; port: string; name?: string
   await printQr(phoneBase, log, "Already paired? Scan to reopen the app (or open the URL):");
 
   log(`ready - open ${phoneBase} on your phone (press Ctrl+C here to stop)`);
-  startDaemonLoop(config, log);
+  startDaemonLoop(config, log, { noTui: options.noTui });
 }
 
 async function ensureLocalRelay(port: number, log: Logger): Promise<void> {
@@ -108,17 +122,35 @@ async function ensureLocalRelay(port: number, log: Logger): Promise<void> {
   }
 }
 
-function startDaemonLoop(config: ReturnType<typeof loadConfig>, log: Logger): void {
+function startDaemonLoop(
+  config: ReturnType<typeof loadConfig>,
+  log: Logger,
+  options: { noTui?: boolean; insecure?: boolean } = {},
+): void {
   const token = config.daemonToken;
   if (!token) {
     log("not paired yet - pairing did not complete");
     process.exit(1);
   }
   log(`device "${config.name}" (${config.deviceId})`);
-  const app = new DaemonApp({ config, token, insecure: false, log });
-  app.start();
+  const app = new DaemonApp({ config, token, insecure: options.insecure ?? false, log });
+  const tui = options.noTui || !process.stdout.isTTY ? null : new Tui({ deviceName: config.name, hooks: app.tuiHooks() });
+  void app.start().catch((err: unknown) => {
+    log(`daemon failed to start: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  });
   log("daemon running. sessions stay alive while this window is open.");
+  log("tip: run `rcmdsh attach` in any terminal window to share it with your phone");
+  if (tui) {
+    app.setLocalOutputListener((id, data) => tui.handleSessionOutput(id, data));
+    app.setSessionsChangedListener(() => tui.refresh());
+    tui.start();
+    log("press q to hide this screen and keep the daemon running");
+  } else if (!options.noTui) {
+    log("(interactive session screen needs a real terminal - running headless logs)");
+  }
   const shutdown = () => {
+    tui?.stop();
     log("shutting down, closing sessions...");
     app.stop();
     process.exit(0);
@@ -145,7 +177,8 @@ program
   .description("connect through a hosted relay (works from anywhere, not just your WiFi)")
   .option("--relay <url>", `hosted relay URL (default: ${DEFAULT_HOSTED_RELAY})`)
   .option("--name <name>", "name for this computer")
-  .action(async (options: { relay?: string; name?: string }) => {
+  .option("--no-tui", "disable the interactive session screen in this terminal")
+  .action(async (options: { relay?: string; name?: string; noTui?: boolean }) => {
     const log = makeLogger();
     const config = loadConfig();
     if (options.name) {
@@ -167,7 +200,7 @@ program
     }
     await printQr(base, log, "Open the app on your phone (scan or open the URL):");
     log(`ready - open ${base} on your phone (press Ctrl+C here to stop)`);
-    startDaemonLoop(config, log);
+    startDaemonLoop(config, log, { noTui: options.noTui });
   });
 
 program
@@ -250,7 +283,7 @@ program
     }
     log(`device "${config.name}" (${config.deviceId})`);
     log(`relay: ${config.relayUrl}${insecure ? " (INSECURE dev mode)" : ""}`);
-    startDaemonLoop({ ...config, daemonToken: token }, log);
+    startDaemonLoop({ ...config, daemonToken: token }, log, { insecure });
   });
 
 program
@@ -269,6 +302,43 @@ program
       `Active shells for this platform: ${allowedShellsForPlatform(config.allowedShells).map((s) => s.id).join(", ") || "none"}`,
     );
     console.log(`Config: ${getConfigDir()}`);
+  });
+
+program
+  .command("attach")
+  .description("share the shell in this terminal window with your phone (run it in any visible prompt)")
+  .option("--shell <id>", "shell to spawn (default: first allowed shell)")
+  .option("--daemon <url>", `attach gateway url (default: ws://127.0.0.1:<attachPort>/bridge)`)
+  .option("--token <token>", "attach token (default: RCMDSH_ATTACH_TOKEN env or the config value)")
+  .action(async (options: { shell?: string; daemon?: string; token?: string }) => {
+    const log = makeLogger();
+    const config = loadConfig();
+    const port = Number.parseInt(process.env.RCMDSH_ATTACH_PORT ?? String(config.attachPort), 10);
+    const token = options.token ?? process.env.RCMDSH_ATTACH_TOKEN ?? config.attachToken;
+    const gatewayUrl = options.daemon ?? `ws://127.0.0.1:${port}/bridge`;
+    await runAttach({ gatewayUrl, token, shellId: options.shell ?? null, log });
+  });
+
+program
+  .command("open")
+  .description("open the control app in a browser on this computer")
+  .action(() => {
+    const config = loadConfig();
+    const url = config.relayUrl || `http://127.0.0.1:${DEFAULT_PORT}`;
+    const opener =
+      process.platform === "win32"
+        ? { file: process.env.ComSpec ?? "cmd.exe", args: ["/d", "/s", "/c", "start", "", url] }
+        : process.platform === "darwin"
+          ? { file: "open", args: [url] }
+          : { file: "xdg-open", args: [url] };
+    try {
+      const child = spawn(opener.file, opener.args, { detached: true, stdio: "ignore" });
+      child.unref();
+      console.log(`opening ${url}`);
+    } catch (err) {
+      console.error(`could not open a browser: ${err instanceof Error ? err.message : String(err)}`);
+      console.log(`open ${url} manually`);
+    }
   });
 
 program

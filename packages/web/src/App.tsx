@@ -90,9 +90,9 @@ export default function App() {
     return <PairScreen onPaired={setPairing} />;
   }
 
-  const createSession = (shell: string) => {
+  const createSession = (shell: string, visible: boolean) => {
     pendingCreateRef.current = shell;
-    socketRef.current?.request({ type: "session.create", shell, cols: 80, rows: 24 });
+    socketRef.current?.request({ type: "session.create", shell, cols: 80, rows: 24, visible });
   };
 
   const unpair = () => {

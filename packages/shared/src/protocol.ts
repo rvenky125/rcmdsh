@@ -18,6 +18,7 @@ export const ClientToDaemonMessage = z.discriminatedUnion("type", [
     shell: z.string().min(1),
     cols: z.number().int().min(2).max(500).default(80),
     rows: z.number().int().min(2).max(300).default(24),
+    visible: z.boolean().optional(),
   }),
   z.object({
     ...envelopeFields,
@@ -50,6 +51,8 @@ export const SessionInfo = z.object({
   title: z.string(),
   createdAt: z.number(),
   alive: z.boolean(),
+  origin: z.enum(["pty", "bridge"]).default("pty"),
+  pid: z.number().nullable().default(null),
 });
 
 export const ShellInfo = z.object({
@@ -92,6 +95,82 @@ export type ClientToDaemonMessage = z.infer<typeof ClientToDaemonMessage>;
 export type DaemonToClientMessage = z.infer<typeof DaemonToClientMessage>;
 export type SessionInfo = z.infer<typeof SessionInfo>;
 export type ShellInfo = z.infer<typeof ShellInfo>;
+
+// ---- daemon <-> attach bridge messages ----
+// Exchanged over a token-authenticated localhost websocket between the daemon's
+// attach gateway and an `rcmdsh attach` client. Never routed through the relay
+// and never end-to-end encrypted (both endpoints are on the same machine).
+
+export const BridgeToDaemonMessage = z.discriminatedUnion("type", [
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.hello"),
+    token: z.string().min(1),
+    shell: z.string().min(1),
+    cols: z.number().int().min(2).max(500),
+    rows: z.number().int().min(2).max(300),
+    pid: z.number().int().nullable().default(null),
+    bridgeId: z.string().min(1).optional(),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.output"),
+    id: z.string().min(1),
+    data: z.string().min(1),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.exit"),
+    id: z.string().min(1),
+    exitCode: z.number().nullable(),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.resize"),
+    id: z.string().min(1),
+    cols: z.number().int().min(2).max(500),
+    rows: z.number().int().min(2).max(300),
+  }),
+]);
+
+export const DaemonToBridgeMessage = z.discriminatedUnion("type", [
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.welcome"),
+    id: z.string().min(1),
+    shell: z.string().min(1),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.input"),
+    id: z.string().min(1),
+    data: z.string().min(1),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.kill"),
+    id: z.string().min(1),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.error"),
+    code: z.string(),
+    message: z.string(),
+  }),
+]);
+
+export type BridgeToDaemonMessage = z.infer<typeof BridgeToDaemonMessage>;
+export type DaemonToBridgeMessage = z.infer<typeof DaemonToBridgeMessage>;
+
+export function parseBridgeToDaemon(value: unknown): ParseResult<BridgeToDaemonMessage> {
+  const parsed = BridgeToDaemonMessage.safeParse(value);
+  return parsed.success ? { ok: true, value: parsed.data } : { ok: false, error: formatIssues(parsed.error) };
+}
+
+export function parseDaemonToBridge(value: unknown): ParseResult<DaemonToBridgeMessage> {
+  const parsed = DaemonToBridgeMessage.safeParse(value);
+  return parsed.success ? { ok: true, value: parsed.data } : { ok: false, error: formatIssues(parsed.error) };
+}
 
 // ---- relay control messages (terminated at the relay, never end-to-end encrypted) ----
 

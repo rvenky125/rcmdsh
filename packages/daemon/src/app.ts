@@ -4,6 +4,7 @@ import {
   frame,
   parseClientToDaemon,
   parseJson,
+  randomId,
   utf8Bytes,
   type ClientToDaemonMessage,
   type DaemonToClientMessage,
@@ -11,7 +12,9 @@ import {
 import type { DaemonConfig } from "./config";
 import { getKeyPair } from "./config";
 import { allowedShellsForPlatform } from "./pty/shells";
-import { SessionManager } from "./pty/SessionManager";
+import { SessionManager, type SessionEvents, type SessionHandle, type SessionSummary } from "./pty/SessionManager";
+import { AttachGateway } from "./attach/Gateway";
+import { spawnAttachWindow } from "./attach/windowSpawner";
 import { RelayConnection } from "./relay/Connection";
 import { daemonKeyForClient, openFromClient, sealToClient } from "./e2e";
 
@@ -22,21 +25,38 @@ export interface DaemonAppOptions {
   log: (message: string) => void;
 }
 
+export interface LocalTuiHooks {
+  sessions(): SessionSummary[];
+  write(id: string, data: string): void;
+  resize(id: string, cols: number, rows: number): void;
+  createDefaultSession(): void;
+  kill(id: string): void;
+}
+
+export type LocalOutputListener = (sessionId: string, data: string) => void;
+
 interface ClientState {
   clientId: string;
   key: Uint8Array | null;
 }
 
+const VISIBLE_WINDOW_TIMEOUT_MS = 4000;
+
 export class DaemonApp {
   private readonly sessions: SessionManager;
+  private readonly gateway: AttachGateway;
   private readonly connection: RelayConnection;
   private readonly clients = new Map<string, ClientState>();
   private readonly keyPair;
+  private readonly sessionEvents: SessionEvents;
+  private localOutputListener: LocalOutputListener | null = null;
+  private sessionsChangedListener: (() => void) | null = null;
 
   constructor(private readonly options: DaemonAppOptions) {
     this.keyPair = getKeyPair(options.config);
-    this.sessions = new SessionManager({
+    this.sessionEvents = {
       onOutput: (sessionId, data) => {
+        this.localOutputListener?.(sessionId, data);
         this.broadcast(
           frame({ type: "session.output", id: sessionId, data: bytesToB64(utf8Bytes(data)) }),
         );
@@ -44,6 +64,19 @@ export class DaemonApp {
       onExit: (sessionId, exitCode) => {
         this.broadcast(frame({ type: "session.exit", id: sessionId, exitCode }));
         this.broadcast(this.sessionsListFrame());
+        this.sessionsChangedListener?.();
+      },
+    };
+    this.sessions = new SessionManager(this.sessionEvents);
+    this.gateway = new AttachGateway({
+      port: options.config.attachPort,
+      token: options.config.attachToken,
+      sessions: this.sessions,
+      events: this.sessionEvents,
+      log: options.log,
+      onSessionsChanged: () => {
+        this.broadcast(this.sessionsListFrame());
+        this.sessionsChangedListener?.();
       },
     });
     this.connection = new RelayConnection({
@@ -57,12 +90,14 @@ export class DaemonApp {
     });
   }
 
-  start(): void {
+  async start(): Promise<void> {
+    await this.gateway.start();
     this.connection.start();
   }
 
   stop(): void {
     this.connection.stop();
+    this.gateway.stop();
     this.sessions.killAll();
   }
 
@@ -132,7 +167,7 @@ export class DaemonApp {
     this.handleAppMessage(client, message);
   }
 
-  private handleAppMessage(client: ClientState, message: ClientToDaemonMessage): void {
+  private async handleAppMessage(client: ClientState, message: ClientToDaemonMessage): Promise<void> {
     switch (message.type) {
       case "sessions.list": {
         this.sendToClient(client, this.sessionsListFrame());
@@ -146,6 +181,14 @@ export class DaemonApp {
         if (!shell) {
           this.sendError(client, "shell_not_allowed", `shell "${message.shell}" is not allowed`);
           return;
+        }
+        if (message.visible) {
+          const created = await this.createVisibleSession(shell.id);
+          if (created) {
+            this.broadcast(this.sessionsListFrame());
+            return;
+          }
+          // fall through to a headless session
         }
         try {
           this.sessions.create(shell, { cols: message.cols, rows: message.rows });
@@ -201,6 +244,65 @@ export class DaemonApp {
         return;
       }
     }
+  }
+
+  // ---- visible window sessions ----
+
+  // Spawns a visible terminal window running `rcmdsh attach`; the window
+  // connects back to the attach gateway and becomes a bridged session.
+  // Returns null when no window could be opened or it failed to connect in
+  // time - the caller falls back to a headless session.
+  private async createVisibleSession(shellId: string): Promise<SessionHandle | null> {
+    const bridgeId = randomId();
+    const spawned = spawnAttachWindow({
+      shellId,
+      attachToken: this.options.config.attachToken,
+      attachPort: this.options.config.attachPort,
+      bridgeId,
+    });
+    if (!spawned) {
+      this.options.log(`could not open a visible window for ${shellId} - creating a background session instead`);
+      return null;
+    }
+    try {
+      const session = await this.gateway.expectBridge(bridgeId, VISIBLE_WINDOW_TIMEOUT_MS);
+      this.options.log(`visible window connected for ${shellId} (pid ${session.pid ?? "?"})`);
+      return session;
+    } catch {
+      this.options.log(`visible window for ${shellId} did not connect - creating a background session instead`);
+      return null;
+    }
+  }
+
+  // ---- local TUI support ----
+
+  tuiHooks(): LocalTuiHooks {
+    return {
+      sessions: () => this.sessions.list(),
+      write: (id, data) => this.sessions.write(id, data),
+      resize: (id, cols, rows) => this.sessions.resize(id, cols, rows),
+      createDefaultSession: () => {
+        const shell = allowedShellsForPlatform(this.options.config.allowedShells)[0];
+        if (!shell) return;
+        try {
+          this.sessions.create(shell, { cols: 80, rows: 24 });
+        } catch (err) {
+          this.options.log(`could not create session: ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
+        this.broadcast(this.sessionsListFrame());
+        this.sessionsChangedListener?.();
+      },
+      kill: (id) => this.sessions.kill(id),
+    };
+  }
+
+  setLocalOutputListener(listener: LocalOutputListener | null): void {
+    this.localOutputListener = listener;
+  }
+
+  setSessionsChangedListener(listener: (() => void) | null): void {
+    this.sessionsChangedListener = listener;
   }
 
   // ---- outbound to relay ----

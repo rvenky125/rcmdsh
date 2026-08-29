@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { b64ToBytes, bytesToB64, generateKeyPair } from "rcmdsh-core";
+import { b64ToBytes, bytesToB64, generateKeyPair, randomId } from "rcmdsh-core";
 
 export interface PairedDevice {
   clientId: string;
@@ -21,7 +21,11 @@ export interface DaemonConfig {
   allowedShells: string[];
   daemonToken: string | null;
   pairedDevices: PairedDevice[];
+  attachPort: number;
+  attachToken: string;
 }
+
+export const DEFAULT_ATTACH_PORT = 8790;
 
 export function getConfigDir(): string {
   return process.env.RCMDSH_HOME ?? path.join(os.homedir(), ".rcmdsh");
@@ -55,6 +59,8 @@ export function defaultConfig(): DaemonConfig {
     allowedShells: defaultAllowedShells(process.platform),
     daemonToken: null,
     pairedDevices: [],
+    attachPort: DEFAULT_ATTACH_PORT,
+    attachToken: randomId(),
   };
 }
 
@@ -75,6 +81,8 @@ export function loadConfig(): DaemonConfig {
     allowedShells: raw.allowedShells ?? defaults.allowedShells,
     daemonToken: raw.daemonToken ?? null,
     pairedDevices: raw.pairedDevices ?? [],
+    attachPort: raw.attachPort ?? defaults.attachPort,
+    attachToken: raw.attachToken ?? defaults.attachToken,
   };
   return config;
 }
