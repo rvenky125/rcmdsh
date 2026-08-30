@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w rcmdsh-core && npm run build -w rcmdsh && npm run build -w rcmdsh-relay && npm run build -w @rcmdsh/web && node scripts/copy-web-dist.mjs",
+    "build": "npm run build -w rcmdsh-core && npm run build -w rcmdsh-relay && npm run build -w rcmdsh && npm run build -w @rcmdsh/web && node scripts/copy-web-dist.mjs",
     "build:node": "npm run build -w rcmdsh-core && npm run build -w rcmdsh && npm run build -w rcmdsh-relay",
     "test": "vitest run",
     "test:watch": "vitest",

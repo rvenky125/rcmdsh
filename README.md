@@ -49,7 +49,7 @@ The relay is a tiny bridge that pairs devices and routes encrypted frames. Run i
 **Docker (recommended)**
 
 ```bash
-docker run -d -p 8787:8787 -v rcmdsh-data:/data ghcr.io/YOURNAME/rcmdsh-relay
+docker run -d -p 8787:8787 -v rcmdsh-data:/data venkypaithireddy9390/rcmdsh:latest
 ```
 
 or from a clone of this repo:
@@ -145,7 +145,13 @@ packages/
 
 - **systemd**: `ExecStart=/usr/bin/rcmdsh connect --relay https://your-relay`, `Restart=always`
 - **Windows**: `schtasks /create /tn rcmdsh /tr "rcmdsh connect --relay https://your-relay" /sc ONLOGON`
-- **Docker publish**: push a tag `v*` — `.github/workflows/docker.yml` builds multi-arch and publishes to GHCR.
+- **Docker publish**: push a tag `v*` — `.github/workflows/docker.yml` builds multi-arch and publishes to GHCR. The image also ships on Docker Hub as [`venkypaithireddy9390/rcmdsh`](https://hub.docker.com/r/venkypaithireddy9390/rcmdsh):
+
+  ```bash
+  docker build -t venkypaithireddy9390/rcmdsh:v0.1.2 -t venkypaithireddy9390/rcmdsh:latest .
+  docker push venkypaithireddy9390/rcmdsh:v0.1.2
+  docker push venkypaithireddy9390/rcmdsh:latest
+  ```
 
 ## Supported platforms
 

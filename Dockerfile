@@ -1,5 +1,10 @@
 FROM node:24-alpine AS build
 
+RUN apk add --no-cache python3 make g++
+
+# node-gyp: official headers host + IPv4-first DNS (avoids WSL2/BuildKit IPv6 timeouts)
+ENV NODE_OPTIONS=--dns-result-order=ipv4first npm_config_dist_url=https://nodejs.org/dist
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -12,6 +17,11 @@ RUN npm install --include=dev
 COPY . .
 RUN npm run build
 
+# node_modules contains symlinks to workspace packages; dereference rcmdsh-core
+# (the only workspace the relay requires at runtime) into a real directory
+RUN rm -rf node_modules/rcmdsh-core \
+  && cp -rL packages/shared node_modules/rcmdsh-core
+
 # ---- runtime image ----
 FROM node:24-alpine
 
@@ -21,6 +31,8 @@ WORKDIR /app
 
 COPY --from=build /app/packages/relay/dist ./relay/
 COPY --from=build /app/packages/relay/public ./public/
+# relay's nested deps (e.g. commander@13, hoisted root holds terser's commander@2)
+COPY --from=build /app/packages/relay/node_modules ./relay/node_modules/
 COPY --from=build /app/node_modules ./node_modules/
 
 RUN mkdir -p /data && chown rcmdsh:rcmdsh /data

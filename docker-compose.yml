@@ -2,7 +2,7 @@ services:
   relay:
     build: .
     # or use a published image:
-    # image: ghcr.io/yourname/rcmdsh-relay:latest
+    # image: venkypaithireddy9390/rcmdsh:latest
     ports:
       - "8787:8787"
     volumes:
