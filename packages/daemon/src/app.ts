@@ -4,7 +4,6 @@ import {
   frame,
   parseClientToDaemon,
   parseJson,
-  randomId,
   utf8Bytes,
   type ClientToDaemonMessage,
   type DaemonToClientMessage,
@@ -12,9 +11,8 @@ import {
 import type { DaemonConfig } from "./config";
 import { getKeyPair } from "./config";
 import { allowedShellsForPlatform } from "./pty/shells";
-import { SessionManager, type SessionEvents, type SessionHandle, type SessionSummary } from "./pty/SessionManager";
+import { SessionManager, type SessionEvents, type SessionSummary } from "./pty/SessionManager";
 import { AttachGateway } from "./attach/Gateway";
-import { spawnAttachWindow } from "./attach/windowSpawner";
 import { RelayConnection } from "./relay/Connection";
 import { daemonKeyForClient, openFromClient, sealToClient } from "./e2e";
 
@@ -39,8 +37,6 @@ interface ClientState {
   clientId: string;
   key: Uint8Array | null;
 }
-
-const VISIBLE_WINDOW_TIMEOUT_MS = 4000;
 
 export class DaemonApp {
   private readonly sessions: SessionManager;
@@ -167,7 +163,7 @@ export class DaemonApp {
     this.handleAppMessage(client, message);
   }
 
-  private async handleAppMessage(client: ClientState, message: ClientToDaemonMessage): Promise<void> {
+  private handleAppMessage(client: ClientState, message: ClientToDaemonMessage): void {
     switch (message.type) {
       case "sessions.list": {
         this.sendToClient(client, this.sessionsListFrame());
@@ -181,14 +177,6 @@ export class DaemonApp {
         if (!shell) {
           this.sendError(client, "shell_not_allowed", `shell "${message.shell}" is not allowed`);
           return;
-        }
-        if (message.visible) {
-          const created = await this.createVisibleSession(shell.id);
-          if (created) {
-            this.broadcast(this.sessionsListFrame());
-            return;
-          }
-          // fall through to a headless session
         }
         try {
           this.sessions.create(shell, { cols: message.cols, rows: message.rows });
@@ -243,34 +231,6 @@ export class DaemonApp {
         }
         return;
       }
-    }
-  }
-
-  // ---- visible window sessions ----
-
-  // Spawns a visible terminal window running `rcmdsh attach`; the window
-  // connects back to the attach gateway and becomes a bridged session.
-  // Returns null when no window could be opened or it failed to connect in
-  // time - the caller falls back to a headless session.
-  private async createVisibleSession(shellId: string): Promise<SessionHandle | null> {
-    const bridgeId = randomId();
-    const spawned = spawnAttachWindow({
-      shellId,
-      attachToken: this.options.config.attachToken,
-      attachPort: this.options.config.attachPort,
-      bridgeId,
-    });
-    if (!spawned) {
-      this.options.log(`could not open a visible window for ${shellId} - creating a background session instead`);
-      return null;
-    }
-    try {
-      const session = await this.gateway.expectBridge(bridgeId, VISIBLE_WINDOW_TIMEOUT_MS);
-      this.options.log(`visible window connected for ${shellId} (pid ${session.pid ?? "?"})`);
-      return session;
-    } catch {
-      this.options.log(`visible window for ${shellId} did not connect - creating a background session instead`);
-      return null;
     }
   }
 

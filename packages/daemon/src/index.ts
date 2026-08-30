@@ -12,8 +12,8 @@ import { Tui } from "./tui/Tui";
 import { pairWithRelay, isPairedFor, normalizeRelayBase, httpBase } from "./pair";
 import { detectLanIp, lanIpCandidates } from "./net";
 
-const VERSION = "0.2.0";
-const DEFAULT_HOSTED_RELAY = "https://relay.rcmdsh.app";
+const VERSION = "0.3.2";
+const DEFAULT_HOSTED_RELAY = "https://rcmdsh.vendroid.dev";
 const DEFAULT_PORT = 8787;
 
 type Logger = (message: string) => void;

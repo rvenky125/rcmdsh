@@ -4,6 +4,11 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { RelaySocket } from "../lib/ws";
+import { loadPairing } from "../lib/store";
+
+function isLocalRelay(url: string): boolean {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/i.test(url);
+}
 
 type OutputListener = (message: DaemonToClientMessage) => void;
 
@@ -23,8 +28,10 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
   const containerRef = useRef<HTMLDivElement>(null);
   const ctrlModeRef = useRef(false);
   const ctrlButtonRef = useRef<HTMLButtonElement>(null);
+  const enqueueInputRef = useRef<(data: string) => void>(() => {});
 
   useEffect(() => {
+    const localEcho = !isLocalRelay(loadPairing()?.relay ?? "");
     const term = new Terminal({
       fontFamily: "Menlo, Consolas, 'Courier New', monospace",
       fontSize: 13,
@@ -40,11 +47,34 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
     term.loadAddon(fitAddon);
     term.open(containerRef.current!);
 
-    const sendInput = (data: string) => {
-      socket.request({ type: "session.input", id: sessionId, data: encodeInput(data) });
+    let pending = "";
+    let rafId: number | null = null;
+
+    const flushInput = () => {
+      rafId = null;
+      if (pending.length === 0) return;
+      const out = pending;
+      pending = "";
+      socket.request({ type: "session.input", id: sessionId, data: encodeInput(out) });
     };
 
-    term.onData(sendInput);
+    const enqueueInput = (data: string) => {
+      if (localEcho) term.write(data);
+      pending += data;
+      if (rafId === null) rafId = requestAnimationFrame(flushInput);
+    };
+    enqueueInputRef.current = enqueueInput;
+
+    const flushBeforeUnload = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      flushInput();
+    };
+
+    term.onData(enqueueInput);
+    window.addEventListener("beforeunload", flushBeforeUnload);
 
     const doFit = () => {
       try {
@@ -82,7 +112,7 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
         if (code >= 97 && code <= 122) {
           e.preventDefault();
           e.stopPropagation();
-          sendInput(String.fromCharCode(code - 96));
+          enqueueInput(String.fromCharCode(code - 96));
           ctrlModeRef.current = false;
           ctrlButtonRef.current?.classList.remove("active");
         }
@@ -97,6 +127,8 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
       unsubscribe();
       window.removeEventListener("resize", doFit);
       window.visualViewport?.removeEventListener("resize", doFit);
+      window.removeEventListener("beforeunload", flushBeforeUnload);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       term.textarea?.removeEventListener("keydown", onKeyDown, true);
       containerRef.current?.removeEventListener("click", focusTerminal);
       term.dispose();
@@ -104,7 +136,7 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
   }, [socket, sessionId, subscribe]);
 
   const sendKey = (data: string) => {
-    socket.request({ type: "session.input", id: sessionId, data: encodeInput(data) });
+    enqueueInputRef.current(data);
   };
 
   return (

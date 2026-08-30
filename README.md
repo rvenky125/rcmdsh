@@ -85,9 +85,8 @@ Put it behind TLS (Caddy/nginx/Cloudflare) for anything public-facing. Phones an
 
 ## Seeing and controlling sessions on your computer
 
-Sessions are not invisible background processes anymore — three ways to work with them locally:
+Sessions opened from the phone always run as background PTYs on the computer — no terminal window pops up. You drive them from the phone (or a browser). To share a terminal that's already open on your computer, use `rcmdsh attach`:
 
-- **Visible windows (default).** Opening a session from the phone spawns a real terminal window on your computer. You see everything, can type in it, and the phone drives the same session. Turn off the "open a window on the computer" toggle in the app for a hidden background session.
 - **Attach to an existing prompt.** Run `rcmdsh attach` in any cmd/PowerShell/bash window — it instantly appears in the phone's session list, stays fully visible locally, and both the local keyboard and the phone can drive it. Note: `attach` shares a *new* shell inside that window — start your CLIs (python, npm, ...) inside it and they are shared too; a process that is already running in the window cannot be adopted retroactively (a Windows limitation).
 - **Interactive session screen.** While the daemon runs, its own console shows a live session list: `↑/↓` select, `a`/`Enter` attach locally (`Ctrl+B` then `d` to detach), `n` new session, `x` kill, `q` hide the screen (daemon keeps running). Disable with `--no-tui`.
 - **Browser.** The same web app your phone uses works on the computer: `rcmdsh open` (or `http://localhost:8787` in LAN mode) shows the full session list and terminals.
