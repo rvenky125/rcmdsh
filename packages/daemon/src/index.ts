@@ -9,10 +9,10 @@ import { SHELL_CATALOG, allowedShellsForPlatform } from "./pty/shells";
 import { DaemonApp } from "./app";
 import { runAttach } from "./attach/AttachClient";
 import { Tui } from "./tui/Tui";
-import { pairWithRelay, isPairedFor, normalizeRelayBase, httpBase } from "./pair";
+import { pairWithRelay, isPairedFor, normalizeRelayBase, httpBase, requestPairing, awaitPairingClaim } from "./pair";
 import { detectLanIp, lanIpCandidates } from "./net";
 
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 const DEFAULT_HOSTED_RELAY = "https://rcmdsh.vendroid.dev";
 const DEFAULT_PORT = 8787;
 
@@ -32,8 +32,8 @@ program
   .option("--port <number>", "port for the built-in relay (LAN mode)", String(DEFAULT_PORT))
   .option("--name <name>", "name for this computer")
   .option("--lan <ip>", "override the LAN IP shown in the QR code")
-  .option("--no-tui", "disable the interactive session screen in this terminal")
-  .action(async (options: { relay?: string; port: string; name?: string; lan?: string; noTui?: boolean }) => {
+  .option("--tui", "show the interactive session screen (default: plain logs that keep the QR code visible)")
+  .action(async (options: { relay?: string; port: string; name?: string; lan?: string; tui?: boolean }) => {
     await runDefault(options);
   });
 
@@ -42,7 +42,7 @@ async function runDefault(options: {
   port: string;
   name?: string;
   lan?: string;
-  noTui?: boolean;
+  tui?: boolean;
 }): Promise<void> {
   const log = makeLogger();
   const config = loadConfig();
@@ -87,10 +87,17 @@ async function runDefault(options: {
     }
   }
 
-  await printQr(phoneBase, log, "Already paired? Scan to reopen the app (or open the URL):");
-
-  log(`ready - open ${phoneBase} on your phone (press Ctrl+C here to stop)`);
-  startDaemonLoop(config, log, { noTui: options.noTui });
+  const pairingCode = await printPairQr(config, daemonBase, phoneBase, log);
+  if (pairingCode) {
+    void awaitPairingClaim({ config, relayBase: daemonBase, code: pairingCode, log })
+      .then((name) => log(`paired "${name}" - it can now control this computer`))
+      .catch(() => {
+        // code expired or nobody scanned it; restarting shows a fresh one
+      });
+  }
+  log("connection started - sessions run in the background on this computer");
+  log("press Ctrl+C here to stop");
+  startDaemonLoop(config, log, { tui: options.tui });
 }
 
 async function ensureLocalRelay(port: number, log: Logger): Promise<void> {
@@ -125,7 +132,7 @@ async function ensureLocalRelay(port: number, log: Logger): Promise<void> {
 function startDaemonLoop(
   config: ReturnType<typeof loadConfig>,
   log: Logger,
-  options: { noTui?: boolean; insecure?: boolean } = {},
+  options: { tui?: boolean; insecure?: boolean } = {},
 ): void {
   const token = config.daemonToken;
   if (!token) {
@@ -134,20 +141,19 @@ function startDaemonLoop(
   }
   log(`device "${config.name}" (${config.deviceId})`);
   const app = new DaemonApp({ config, token, insecure: options.insecure ?? false, log });
-  const tui = options.noTui || !process.stdout.isTTY ? null : new Tui({ deviceName: config.name, hooks: app.tuiHooks() });
+  const tui = options.tui && process.stdout.isTTY ? new Tui({ deviceName: config.name, hooks: app.tuiHooks() }) : null;
   void app.start().catch((err: unknown) => {
     log(`daemon failed to start: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   });
-  log("daemon running. sessions stay alive while this window is open.");
   log("tip: run `rcmdsh attach` in any terminal window to share it with your phone");
   if (tui) {
     app.setLocalOutputListener((id, data) => tui.handleSessionOutput(id, data));
     app.setSessionsChangedListener(() => tui.refresh());
     tui.start();
     log("press q to hide this screen and keep the daemon running");
-  } else if (!options.noTui) {
-    log("(interactive session screen needs a real terminal - running headless logs)");
+  } else if (options.tui) {
+    log("(interactive session screen needs a real terminal - showing plain logs)");
   }
   const shutdown = () => {
     tui?.stop();
@@ -163,13 +169,32 @@ function makeLogger(): Logger {
   return (message: string) => console.log(`[rcmdsh] ${message}`);
 }
 
-async function printQr(url: string, log: Logger, title: string): Promise<void> {
-  log("");
-  log(title);
-  log(`  ${url}`);
+// Prints a QR that pairs a phone: the URL carries a fresh single-use pairing
+// code, and the PWA claims it automatically when opened. Returns the code so
+// the caller can poll for the claim in the background, or null when the relay
+// could not be reached (a plain app-URL QR is printed as a fallback).
+async function printPairQr(
+  config: ReturnType<typeof loadConfig>,
+  relayBase: string,
+  phoneBase: string,
+  log: Logger,
+): Promise<string | null> {
   const qrcode = (await import("qrcode-terminal")).default;
-  qrcode.generate(url, { small: true });
-  log("");
+  try {
+    const fresh = await requestPairing({ config, relayBase, phoneBase });
+    log("");
+    log("Scan to connect your phone (pairing happens automatically):");
+    log(`  ${fresh.pairUrl}`);
+    log(`  Pairing code: ${fresh.code}`);
+    log("");
+    qrcode.generate(fresh.pairUrl, { small: true });
+    return fresh.code;
+  } catch (err) {
+    log(`could not create a pairing code: ${err instanceof Error ? err.message : String(err)}`);
+    log(`open ${phoneBase} on your phone to pair manually:`);
+    qrcode.generate(phoneBase, { small: true });
+    return null;
+  }
 }
 
 program
@@ -177,8 +202,8 @@ program
   .description("connect through a hosted relay (works from anywhere, not just your WiFi)")
   .option("--relay <url>", `hosted relay URL (default: ${DEFAULT_HOSTED_RELAY})`)
   .option("--name <name>", "name for this computer")
-  .option("--no-tui", "disable the interactive session screen in this terminal")
-  .action(async (options: { relay?: string; name?: string; noTui?: boolean }) => {
+  .option("--tui", "show the interactive session screen (default: plain logs that keep the QR code visible)")
+  .action(async (options: { relay?: string; name?: string; tui?: boolean }) => {
     const log = makeLogger();
     const config = loadConfig();
     if (options.name) {
@@ -198,9 +223,17 @@ program
         process.exit(1);
       }
     }
-    await printQr(base, log, "Open the app on your phone (scan or open the URL):");
-    log(`ready - open ${base} on your phone (press Ctrl+C here to stop)`);
-    startDaemonLoop(config, log, { noTui: options.noTui });
+    const pairingCode = await printPairQr(config, base, base, log);
+    if (pairingCode) {
+      void awaitPairingClaim({ config, relayBase: base, code: pairingCode, log })
+        .then((name) => log(`paired "${name}" - it can now control this computer`))
+        .catch(() => {
+          // code expired or nobody scanned it; restarting shows a fresh one
+        });
+    }
+    log("connection started - sessions run in the background on this computer");
+    log("press Ctrl+C here to stop");
+    startDaemonLoop(config, log, { tui: options.tui });
   });
 
 program
@@ -264,7 +297,8 @@ program
   .description("start the daemon against the configured relay (advanced)")
   .option("--relay <url>", "relay URL (overrides config)")
   .option("--insecure-dev-token <token>", "use a shared dev token instead of pairing (development only)")
-  .action(async (options: { relay?: string; insecureDevToken?: string }) => {
+  .option("--tui", "show the interactive session screen (default: plain logs)")
+  .action(async (options: { relay?: string; insecureDevToken?: string; tui?: boolean }) => {
     const log = makeLogger();
     const config = loadConfig();
     if (options.relay) {
@@ -283,7 +317,7 @@ program
     }
     log(`device "${config.name}" (${config.deviceId})`);
     log(`relay: ${config.relayUrl}${insecure ? " (INSECURE dev mode)" : ""}`);
-    startDaemonLoop({ ...config, daemonToken: token }, log, { insecure });
+    startDaemonLoop({ ...config, daemonToken: token }, log, { insecure, tui: options.tui });
   });
 
 program

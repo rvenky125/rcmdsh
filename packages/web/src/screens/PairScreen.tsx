@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { newClientKeyPair, savePairing, type PairingState } from "../lib/store";
 
 interface PairScreenProps {
@@ -31,10 +31,17 @@ export function PairScreen({ onPaired }: PairScreenProps) {
   const [devToken, setDevToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const autoSubmitRef = useRef(false);
 
   useEffect(() => {
     if (query) {
       window.history.replaceState(null, "", window.location.pathname);
+    }
+    // The QR link carries relay + code, so pairing can go ahead without a
+    // second tap. Errors leave the prefilled form visible for a manual retry.
+    if (query && !autoSubmitRef.current) {
+      autoSubmitRef.current = true;
+      void submit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

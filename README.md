@@ -22,7 +22,7 @@ That single command:
 2. prints a **QR code** (using your LAN IP),
 3. waits for your phone.
 
-Scan the QR with your phone (same WiFi) → tap **Pair** → pick a shell (PowerShell, cmd, bash, zsh) → you're in a live terminal.
+Scan the QR with your phone (same WiFi) → the app pairs automatically → pick a shell (PowerShell, cmd, bash, zsh) → you're in a live terminal.
 
 Run it again any time — it reuses the relay and remembers your phone.
 
@@ -73,7 +73,7 @@ Put it behind TLS (Caddy/nginx/Cloudflare) for anything public-facing. Phones an
 | `rcmdsh` | guided setup: relay + daemon + QR (LAN mode) |
 | `rcmdsh --port 8788` | same, different port |
 | `rcmdsh --lan 192.168.1.20` | force a specific LAN IP in the QR |
-| `rcmdsh --no-tui` | run without the interactive session screen |
+| `rcmdsh --tui` | show the interactive session screen (default: plain logs that keep the QR code visible) |
 | `rcmdsh connect [--relay url]` | pair + run through a hosted relay |
 | `rcmdsh serve` | run the relay server only |
 | `rcmdsh pair` | pair only, don't start the daemon (advanced) |
@@ -88,7 +88,7 @@ Put it behind TLS (Caddy/nginx/Cloudflare) for anything public-facing. Phones an
 Sessions opened from the phone always run as background PTYs on the computer — no terminal window pops up. You drive them from the phone (or a browser). To share a terminal that's already open on your computer, use `rcmdsh attach`:
 
 - **Attach to an existing prompt.** Run `rcmdsh attach` in any cmd/PowerShell/bash window — it instantly appears in the phone's session list, stays fully visible locally, and both the local keyboard and the phone can drive it. Note: `attach` shares a *new* shell inside that window — start your CLIs (python, npm, ...) inside it and they are shared too; a process that is already running in the window cannot be adopted retroactively (a Windows limitation).
-- **Interactive session screen.** While the daemon runs, its own console shows a live session list: `↑/↓` select, `a`/`Enter` attach locally (`Ctrl+B` then `d` to detach), `n` new session, `x` kill, `q` hide the screen (daemon keeps running). Disable with `--no-tui`.
+- **Interactive session screen (opt-in).** Run `rcmdsh --tui` and the daemon's console shows a live session list: `↑/↓` select, `a`/`Enter` attach locally (`Ctrl+B` then `d` to detach), `n` new session, `x` kill, `q` hide the screen (daemon keeps running). By default the daemon shows plain logs so the pairing QR code stays visible.
 - **Browser.** The same web app your phone uses works on the computer: `rcmdsh open` (or `http://localhost:8787` in LAN mode) shows the full session list and terminals.
 
 ## Security model
@@ -147,8 +147,8 @@ packages/
 - **Docker publish**: push a tag `v*` — `.github/workflows/docker.yml` builds multi-arch and publishes to GHCR. The image also ships on Docker Hub as [`venkypaithireddy9390/rcmdsh`](https://hub.docker.com/r/venkypaithireddy9390/rcmdsh):
 
   ```bash
-  docker build -t venkypaithireddy9390/rcmdsh:v0.1.2 -t venkypaithireddy9390/rcmdsh:latest .
-  docker push venkypaithireddy9390/rcmdsh:v0.1.2
+  docker build -t venkypaithireddy9390/rcmdsh:v0.3.3 -t venkypaithireddy9390/rcmdsh:latest .
+  docker push venkypaithireddy9390/rcmdsh:v0.3.3
   docker push venkypaithireddy9390/rcmdsh:latest
   ```
 
