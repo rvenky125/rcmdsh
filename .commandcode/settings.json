@@ -4,7 +4,12 @@
       "Shell(node -v)",
       "Shell(npm:*)",
       "Shell(dir:*)",
-      "Shell(findstr:*)"
+      "Shell(findstr:*)",
+      "Shell(docker:*)",
+      "Shell(git:*)",
+      "powershell",
+      "Shell(Select-Object:*)",
+      "Shell(Select-String:*)"
     ],
     "deny": [],
     "defaultMode": "default"

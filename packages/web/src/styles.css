@@ -83,6 +83,61 @@ h2 {
   z-index: 50;
 }
 
+/* ---- ad overlay ---- */
+
+.ad-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(4, 10, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ad-card {
+  width: 100%;
+  max-width: 480px;
+  background: #101a2e;
+  border: 1px solid #24344f;
+  border-radius: 14px;
+  padding: 0.6rem 0.8rem 0.8rem;
+}
+
+.ad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.ad-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7c8db0;
+}
+
+.ad-close {
+  background: #16233a;
+  border: 1px solid #24344f;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ad-close:active {
+  background: #1e3050;
+}
+
+.ad-card ins {
+  min-height: 250px;
+}
+
 /* ---- forms ---- */
 
 label {
