@@ -2,7 +2,8 @@ node_modules
 dist
 public
 packages/*/dist
-packages/*/public
+packages/daemon/public
+packages/relay/public
 *.db
 *.db-shm
 *.db-wal
