@@ -1,6 +1,6 @@
 {
   "name": "rcmdsh",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Control your computer's shell from your phone - one command, one QR code",
   "license": "MIT",
   "repository": {
@@ -33,8 +33,8 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "rcmdsh-relay": "^0.3.5",
-    "rcmdsh-core": "^0.3.5",
+    "rcmdsh-relay": "^0.3.6",
+    "rcmdsh-core": "^0.3.6",
     "commander": "^13.0.0",
     "node-pty": "^1.0.0",
     "qrcode-terminal": "^0.12.0",
