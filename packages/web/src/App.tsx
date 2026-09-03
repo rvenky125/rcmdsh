@@ -92,7 +92,7 @@ export default function App() {
 
   const createSession = (shell: string) => {
     pendingCreateRef.current = shell;
-    socketRef.current?.request({ type: "session.create", shell, cols: 80, rows: 24 });
+    socketRef.current?.request({ type: "session.create", shell });
   };
 
   const unpair = () => {

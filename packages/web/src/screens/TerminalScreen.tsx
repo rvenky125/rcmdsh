@@ -12,6 +12,8 @@ function isLocalRelay(url: string): boolean {
 
 type OutputListener = (message: DaemonToClientMessage) => void;
 
+const RESIZE_DEBOUNCE_MS = 100;
+
 interface TerminalScreenProps {
   socket: RelaySocket;
   sessionId: string;
@@ -83,15 +85,37 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
         // container may be hidden mid-layout
       }
     };
+    let resizeTimer: number | null = null;
+    const sendResize = (cols: number, rows: number) => {
+      if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null;
+        socket.request({
+          type: "session.resize",
+          id: sessionId,
+          cols: Math.max(2, cols),
+          rows: Math.max(2, rows),
+        });
+      }, RESIZE_DEBOUNCE_MS);
+    };
+    term.onResize(({ cols, rows }) => sendResize(cols, rows));
     doFit();
-    term.onResize(({ cols, rows }) => {
-      socket.request({ type: "session.resize", id: sessionId, cols, rows });
-    });
     window.addEventListener("resize", doFit);
     window.visualViewport?.addEventListener("resize", doFit);
+    // The container (not the window) is what the terminal must fill; observing
+    // it catches devtools docking, mobile URL-bar collapses and any layout
+    // shift that plain window resize events miss.
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => doFit()) : null;
+    resizeObserver?.observe(containerRef.current!);
 
     const requestAttach = () => {
-      socket.request({ type: "session.attach", id: sessionId });
+      socket.request({
+        type: "session.attach",
+        id: sessionId,
+        cols: Math.max(2, term.cols),
+        rows: Math.max(2, term.rows),
+      });
     };
     requestAttach();
 
@@ -125,10 +149,12 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
 
     return () => {
       unsubscribe();
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", doFit);
       window.visualViewport?.removeEventListener("resize", doFit);
       window.removeEventListener("beforeunload", flushBeforeUnload);
       if (rafId !== null) cancelAnimationFrame(rafId);
+      if (resizeTimer !== null) window.clearTimeout(resizeTimer);
       term.textarea?.removeEventListener("keydown", onKeyDown, true);
       containerRef.current?.removeEventListener("click", focusTerminal);
       term.dispose();

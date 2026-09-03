@@ -1,3 +1,4 @@
+import net from "node:net";
 import { b64ToBytes, bytesToB64, frame, parseJson, utf8Bytes } from "rcmdsh-core";
 import { parseDaemonToBridge, type DaemonToBridgeMessage } from "rcmdsh-core";
 import * as nodePty from "node-pty";
@@ -37,7 +38,7 @@ export async function runAttach(options: AttachClientOptions): Promise<void> {
   const rows = process.stdout.rows ?? 24;
   const ws = await connectWithRetry(options);
   if (!ws) {
-    options.log(`could not reach the daemon at ${options.gatewayUrl} - is it running?`);
+    await explainUnreachableGateway(options);
     process.exitCode = 1;
     return;
   }
@@ -89,6 +90,16 @@ export async function runAttach(options: AttachClientOptions): Promise<void> {
       }
       case "bridge.input": {
         pty.write(new TextDecoder().decode(b64ToBytes(message.data)));
+        break;
+      }
+      case "bridge.resize": {
+        // A phone or browser took over the viewport; follow it so the local
+        // pty wraps output at the same width the remote viewer renders.
+        try {
+          pty.resize(message.cols, message.rows);
+        } catch {
+          // pty may have just exited
+        }
         break;
       }
       case "bridge.kill": {
@@ -196,5 +207,62 @@ function connectOnce(url: string): Promise<WebSocket | null> {
       }
       settle(null);
     });
+  });
+}
+
+// A failed connect has one of a few concrete causes depending on what is (or
+// is not) listening locally: no daemon at all, a daemon stuck waiting for a
+// device to pair (the attach gateway only starts once pairing finishes), or
+// another program holding the port (the daemon then moves to a nearby one).
+// Probe and say which one it is instead of a generic "is it running?".
+export async function explainUnreachableGateway(
+  options: AttachClientOptions,
+  relayProbePort = 8787,
+): Promise<void> {
+  let url: URL;
+  try {
+    url = new URL(options.gatewayUrl);
+  } catch {
+    options.log(`could not reach the daemon at ${options.gatewayUrl} - is it running?`);
+    return;
+  }
+  const port = Number(url.port) || (url.protocol === "wss:" ? 443 : 80);
+  if (await isTcpOpen(url.hostname, port)) {
+    options.log(
+      `something else is listening on ${url.hostname}:${port} - the daemon moved its attach gateway to a nearby port`,
+    );
+    options.log(
+      "check the daemon window for 'attach gateway listening on ...' and run: rcmdsh attach --daemon ws://127.0.0.1:<port>/bridge",
+    );
+    return;
+  }
+  if (
+    ["127.0.0.1", "localhost", "::1"].includes(url.hostname) &&
+    (await isTcpOpen("127.0.0.1", relayProbePort))
+  ) {
+    options.log("the daemon is running but still waiting for a device to pair - scan the QR shown in its window");
+    options.log(
+      `(a relay is already listening on port ${relayProbePort}; the attach gateway only starts once pairing finishes)`,
+    );
+    return;
+  }
+  options.log("the rcmdsh daemon is not running on this computer");
+  options.log(
+    "start it in another window (npx rcmdsh, or npx rcmdsh connect) and keep that window open, then run attach again",
+  );
+}
+
+function isTcpOpen(host: string, port: number, timeoutMs = 1000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port });
+    const settle = (open: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(open);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => settle(true));
+    socket.once("timeout", () => settle(false));
+    socket.once("error", () => settle(false));
   });
 }

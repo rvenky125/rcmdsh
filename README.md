@@ -90,6 +90,7 @@ Sessions opened from the phone always run as background PTYs on the computer —
 - **Attach to an existing prompt.** Run `rcmdsh attach` in any cmd/PowerShell/bash window — it instantly appears in the phone's session list, stays fully visible locally, and both the local keyboard and the phone can drive it. Note: `attach` shares a *new* shell inside that window — start your CLIs (python, npm, ...) inside it and they are shared too; a process that is already running in the window cannot be adopted retroactively (a Windows limitation).
 - **Interactive session screen (opt-in).** Run `rcmdsh --tui` and the daemon's console shows a live session list: `↑/↓` select, `a`/`Enter` attach locally (`Ctrl+B` then `d` to detach), `n` new session, `x` kill, `q` hide the screen (daemon keeps running). By default the daemon shows plain logs so the pairing QR code stays visible.
 - **Browser.** The same web app your phone uses works on the computer: `rcmdsh open` (or `http://localhost:8787` in LAN mode) shows the full session list and terminals.
+- **Resizes to the device you open it on.** A session's terminal size follows whichever device most recently opened it: open the same shell on your phone and on a big browser window and each takes over the geometry (columns/rows) when it attaches. If two devices view the same session at once, the most recent viewport change wins.
 
 ## Security model
 

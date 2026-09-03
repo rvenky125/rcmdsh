@@ -37,6 +37,8 @@ export const ClientToDaemonMessage = z.discriminatedUnion("type", [
     ...envelopeFields,
     type: z.literal("session.attach"),
     id: z.string().min(1),
+    cols: z.number().int().min(2).max(500).optional(),
+    rows: z.number().int().min(2).max(300).optional(),
   }),
   z.object({
     ...envelopeFields,
@@ -145,6 +147,13 @@ export const DaemonToBridgeMessage = z.discriminatedUnion("type", [
     type: z.literal("bridge.input"),
     id: z.string().min(1),
     data: z.string().min(1),
+  }),
+  z.object({
+    ...envelopeFields,
+    type: z.literal("bridge.resize"),
+    id: z.string().min(1),
+    cols: z.number().int().min(2).max(500),
+    rows: z.number().int().min(2).max(300),
   }),
   z.object({
     ...envelopeFields,

@@ -19,6 +19,8 @@ describe("client-to-daemon messages", () => {
       frame({ type: "session.create", shell: "powershell", cols: 120, rows: 40 }),
       frame({ type: "session.input", id: "s1", data: "ZGlyXHJcbg==" }),
       frame({ type: "session.resize", id: "s1", cols: 100, rows: 30 }),
+      frame({ type: "session.attach", id: "s1" }),
+      frame({ type: "session.attach", id: "s1", cols: 120, rows: 40 }),
       frame({ type: "session.kill", id: "s1" }),
     ];
     for (const msg of messages) {
@@ -39,6 +41,23 @@ describe("client-to-daemon messages", () => {
       expect(parsed.value.cols).toBe(80);
       expect(parsed.value.rows).toBe(24);
     }
+  });
+
+  it("accepts session.attach with or without terminal size", () => {
+    const withSize = parseClientToDaemon(frame({ type: "session.attach", id: "s1", cols: 140, rows: 48 }));
+    expect(withSize).toMatchObject({ ok: true });
+    if (withSize.ok && withSize.value.type === "session.attach") {
+      expect(withSize.value.cols).toBe(140);
+      expect(withSize.value.rows).toBe(48);
+    }
+    const withoutSize = parseClientToDaemon(frame({ type: "session.attach", id: "s1" }));
+    expect(withoutSize).toMatchObject({ ok: true });
+    if (withoutSize.ok && withoutSize.value.type === "session.attach") {
+      expect(withoutSize.value.cols).toBeUndefined();
+      expect(withoutSize.value.rows).toBeUndefined();
+    }
+    expect(parseClientToDaemon(frame({ type: "session.attach", id: "s1", cols: 1 })).ok).toBe(false);
+    expect(parseClientToDaemon(frame({ type: "session.attach", id: "s1", rows: 301 })).ok).toBe(false);
   });
 
   it("accepts the visible flag on session.create", () => {
@@ -154,6 +173,7 @@ describe("bridge messages", () => {
     const messages = [
       frame({ type: "bridge.welcome", id: "s1", shell: "cmd" }),
       frame({ type: "bridge.input", id: "s1", data: "ZGlyXHJcbg==" }),
+      frame({ type: "bridge.resize", id: "s1", cols: 46, rows: 20 }),
       frame({ type: "bridge.kill", id: "s1" }),
       frame({ type: "bridge.error", code: "bad_token", message: "nope" }),
     ];

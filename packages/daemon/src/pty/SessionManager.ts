@@ -101,6 +101,8 @@ export class Session implements SessionHandle {
   readonly pid: number | null;
   alive = true;
   exitCode: number | null = null;
+  cols: number;
+  rows: number;
 
   private readonly scrollback = new Scrollback();
   private readonly batcher: OutputBatcher;
@@ -110,12 +112,16 @@ export class Session implements SessionHandle {
     shellId: string,
     private readonly process: nodePty.IPty,
     private readonly events: SessionEvents,
+    cols: number,
+    rows: number,
   ) {
     this.id = id;
     this.shellId = shellId;
     this.title = shellId;
     this.createdAt = Date.now();
     this.pid = typeof process.pid === "number" ? process.pid : null;
+    this.cols = cols;
+    this.rows = rows;
     this.batcher = new OutputBatcher((blob) => this.events.onOutput(this.id, blob));
 
     this.process.onData((data) => {
@@ -140,6 +146,8 @@ export class Session implements SessionHandle {
     if (this.alive) {
       try {
         this.process.resize(cols, rows);
+        this.cols = cols;
+        this.rows = rows;
       } catch {
         // resizing a just-exited pty can throw; nothing to do
       }
@@ -198,7 +206,7 @@ export class SessionManager {
       cwd: os.homedir(),
       env: process.env as Record<string, string>,
     });
-    const session = new Session(id, shell.id, ptyProcess, this.events);
+    const session = new Session(id, shell.id, ptyProcess, this.events, options.cols, options.rows);
     this.sessions.set(id, session);
     return session;
   }

@@ -76,11 +76,17 @@ describe("SessionManager", () => {
     harness.manager.kill(session.id);
   });
 
-  it("resizes without throwing", async () => {
+  it("resizes without throwing and tracks the current size", async () => {
     const harness = makeHarness();
     const session = harness.manager.create(primaryShell, { cols: 80, rows: 24 });
+    expect(session.cols).toBe(80);
+    expect(session.rows).toBe(24);
     harness.manager.resize(session.id, 120, 40);
+    expect(session.cols).toBe(120);
+    expect(session.rows).toBe(40);
     harness.manager.resize(session.id, 50, 10);
+    expect(session.cols).toBe(50);
+    expect(session.rows).toBe(10);
     harness.manager.kill(session.id);
     await waitFor(() => !harness.manager.get(session.id).alive);
   });

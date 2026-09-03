@@ -207,6 +207,9 @@ export class DaemonApp {
       }
       case "session.attach": {
         try {
+          if (message.cols !== undefined && message.rows !== undefined) {
+            this.sessions.resize(message.id, message.cols, message.rows);
+          }
           const replay = this.sessions.replay(message.id);
           if (replay.length > 0) {
             this.sendToClient(
