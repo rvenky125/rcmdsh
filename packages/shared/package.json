@@ -1,6 +1,6 @@
 {
   "name": "rcmdsh-core",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Protocol, crypto and utilities shared by rcmdsh daemon, relay and web",
   "license": "MIT",
   "repository": {

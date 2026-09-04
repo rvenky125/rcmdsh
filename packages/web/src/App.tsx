@@ -5,6 +5,7 @@ import { RelaySocket, type ConnectionStatus } from "./lib/ws";
 import { PairScreen } from "./screens/PairScreen";
 import { SessionsScreen } from "./screens/SessionsScreen";
 import { TerminalScreen } from "./screens/TerminalScreen";
+import { ensurePopunder, stopSuppressingPopunder, suppressPopunder } from "./lib/ads";
 
 type Screen = { name: "sessions" } | { name: "terminal"; id: string; title: string };
 
@@ -85,6 +86,14 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (screen.name === "terminal") {
+      suppressPopunder();
+      return () => stopSuppressingPopunder();
+    }
+    ensurePopunder();
+  }, [screen.name]);
 
   if (!pairing) {
     return <PairScreen onPaired={setPairing} />;

@@ -413,3 +413,13 @@ label input:focus {
 .toolbar .key.wide {
   min-width: 3.4rem;
 }
+
+/* ---- banner ad (sessions screen only, never in terminal) ---- */
+
+.banner-ad {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 0.4rem;
+  min-height: 90px;
+  overflow: hidden;
+}

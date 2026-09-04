@@ -4,11 +4,6 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { RelaySocket } from "../lib/ws";
-import { loadPairing } from "../lib/store";
-
-function isLocalRelay(url: string): boolean {
-  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/i.test(url);
-}
 
 type OutputListener = (message: DaemonToClientMessage) => void;
 
@@ -33,7 +28,6 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
   const enqueueInputRef = useRef<(data: string) => void>(() => {});
 
   useEffect(() => {
-    const localEcho = !isLocalRelay(loadPairing()?.relay ?? "");
     const term = new Terminal({
       fontFamily: "Menlo, Consolas, 'Courier New', monospace",
       fontSize: 13,
@@ -60,8 +54,9 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
       socket.request({ type: "session.input", id: sessionId, data: encodeInput(out) });
     };
 
+    // No local echo here: the pty/bridge always echoes input back via
+    // session.output, so writing locally would show every keystroke twice.
     const enqueueInput = (data: string) => {
-      if (localEcho) term.write(data);
       pending += data;
       if (rafId === null) rafId = requestAnimationFrame(flushInput);
     };
