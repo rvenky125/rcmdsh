@@ -9,6 +9,29 @@ type OutputListener = (message: DaemonToClientMessage) => void;
 
 const RESIZE_DEBOUNCE_MS = 100;
 
+// How long a predicted keystroke waits for the server's echo before we
+// assume echo is off (password prompt) and erase it from the screen.
+const PREDICT_CONFIRM_MS = 800;
+
+function commonPrefixLen(a: string, b: string): number {
+  const max = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < max && a[i] === b[i]) i++;
+  return i;
+}
+
+const ANSI_CSI = /\x1b\[[0-9;:]*[A-Za-z]/g;
+const ANSI_OSC = /\x1b\][^\x07]*(\x07|\x1b\\)/g;
+// Codes that erase/insert/scroll content. A blob containing them may repaint
+// the screen, so the echo reconciler must never swallow it and any pending
+// prediction is stale. Positioning (ABCDEFGHf), visibility (?25h/l) and color
+// (m) codes are safe: PSReadLine wraps every keystroke emit in them.
+const CONTENT_CHANGE = /\x1b\[[0-9;:]*[JKLMPSTX@]/;
+
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_OSC, "").replace(ANSI_CSI, "");
+}
+
 interface TerminalScreenProps {
   socket: RelaySocket;
   sessionId: string;
@@ -54,11 +77,48 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
       socket.request({ type: "session.input", id: sessionId, data: encodeInput(out) });
     };
 
-    // No local echo here: the pty/bridge always echoes input back via
-    // session.output, so writing locally would show every keystroke twice.
+    // Predictive local echo (mosh-lite): printable keystrokes are rendered
+    // immediately so typing feels instant, then the server's echo of those
+    // exact characters is swallowed on arrival (longest-prefix match).
+    // Programs that redraw the line (PSReadLine, vim) simply paint over the
+    // prediction, and keystrokes the server never echoes (password prompts)
+    // are erased after PREDICT_CONFIRM_MS so secrets never linger.
+    let unconfirmed = "";
+    let probing = false; // after a no-echo cycle, predict single-char probes only
+    let eraseTimer: number | null = null;
+
+    const cancelErase = () => {
+      if (eraseTimer !== null) {
+        window.clearTimeout(eraseTimer);
+        eraseTimer = null;
+      }
+    };
+
+    const scheduleErase = () => {
+      cancelErase();
+      eraseTimer = window.setTimeout(() => {
+        eraseTimer = null;
+        if (unconfirmed.length === 0) return;
+        term.write("\b \b".repeat(unconfirmed.length));
+        unconfirmed = "";
+        probing = true;
+      }, PREDICT_CONFIRM_MS);
+    };
+
+    const isPredictable = (data: string): boolean => {
+      if (data.length !== 1) return false;
+      const code = data.charCodeAt(0);
+      return code >= 32 && code <= 126;
+    };
+
     const enqueueInput = (data: string) => {
       pending += data;
       if (rafId === null) rafId = requestAnimationFrame(flushInput);
+      if ((probing ? unconfirmed.length === 0 : true) && isPredictable(data)) {
+        unconfirmed += data;
+        term.write(data);
+        scheduleErase();
+      }
     };
     enqueueInputRef.current = enqueueInput;
 
@@ -117,8 +177,65 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
     const onMessage: OutputListener = (message) => {
       if (message.type === "session.output" && message.id === sessionId) {
         const bytes = Uint8Array.from(atob(message.data), (c) => c.charCodeAt(0));
-        term.write(new TextDecoder().decode(bytes));
+        const text = new TextDecoder().decode(bytes);
+        if (unconfirmed.length > 0) {
+          // Plain echo (cmd.exe, bash): the blob starts with exactly the
+          // predicted characters.
+          const direct = commonPrefixLen(text, unconfirmed);
+          if (direct > 0) {
+            unconfirmed = unconfirmed.slice(direct);
+            probing = false;
+            cancelErase();
+            if (unconfirmed.length > 0) scheduleErase();
+            term.write(text.slice(direct));
+            return;
+          }
+          if (!CONTENT_CHANGE.test(text) && !text.includes("\r")) {
+            // Control-only preamble (cursor visibility/positioning before the
+            // emit): apply it and keep waiting for the echo.
+            if (stripAnsi(text).length === 0) {
+              term.write(text);
+              return;
+            }
+            // Styled echo (PSReadLine emits each keystroke wrapped in cursor
+            // and color codes): if the visible text starts with the
+            // prediction, the server merely re-rendered what we already
+            // showed — swallow the matched part instead of drawing it twice.
+            const styled = commonPrefixLen(stripAnsi(text), unconfirmed);
+            if (styled > 0) {
+              let seen = 0;
+              let idx = 0;
+              while (seen < styled && idx < text.length) {
+                const rest = text.slice(idx);
+                const code = rest.match(/^(\x1b\[[0-9;:]*[A-Za-z]|\x1b\][^\x07]*(\x07|\x1b\\))/);
+                if (code) {
+                  idx += code[0].length;
+                  continue;
+                }
+                idx++;
+                seen++;
+              }
+              unconfirmed = unconfirmed.slice(styled);
+              probing = false;
+              cancelErase();
+              if (unconfirmed.length > 0) scheduleErase();
+              term.write(text.slice(idx));
+              return;
+            }
+          }
+          // Not our echo (masked prompts like Read-Host -AsSecureString that
+          // emit "*", full-screen repaints, async writes): erase the
+          // prediction first — a repaint redraws its region anyway, but a
+          // leaked password character would never be taken back — then
+          // render the blob raw.
+          term.write("\b \b".repeat(unconfirmed.length));
+          unconfirmed = "";
+          cancelErase();
+        }
+        term.write(text);
       } else if (message.type === "session.exit" && message.id === sessionId) {
+        cancelErase();
+        unconfirmed = "";
         term.write(`\r\n\x1b[33m[session exited with code ${message.exitCode ?? "?"}]\x1b[0m\r\n`);
       }
     };
@@ -143,6 +260,7 @@ export function TerminalScreen({ socket, sessionId, sessionTitle, subscribe, onB
     containerRef.current!.addEventListener("click", focusTerminal);
 
     return () => {
+      cancelErase();
       unsubscribe();
       resizeObserver?.disconnect();
       window.removeEventListener("resize", doFit);
