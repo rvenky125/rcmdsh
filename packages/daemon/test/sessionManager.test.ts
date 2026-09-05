@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SessionManager, UnknownSessionError } from "../src/pty/SessionManager";
-import { getShellDef, shellsForPlatform } from "../src/pty/shells";
+import { defaultShellForPlatform, getShellDef, shellsForPlatform } from "../src/pty/shells";
 
 interface Harness {
   manager: SessionManager;
@@ -40,7 +40,7 @@ function waitFor(predicate: () => boolean, timeoutMs = 20000): Promise<void> {
   });
 }
 
-const primaryShell = shellsForPlatform()[0]!;
+const primaryShell = defaultShellForPlatform() ?? shellsForPlatform()[0]!;
 
 describe("SessionManager", () => {
   it("has a usable shell for this platform", () => {

@@ -5,6 +5,7 @@ import * as nodePty from "node-pty";
 import WebSocket from "ws";
 import { loadConfig } from "../config";
 import { allowedShellsForPlatform } from "../pty/shells";
+import { describeSpawnError } from "../pty/spawnEnv";
 import { startRawPipe } from "./rawPipe";
 
 export interface AttachClientOptions {
@@ -47,13 +48,21 @@ export async function runAttach(options: AttachClientOptions): Promise<void> {
   let remoteAlive = false;
   let exitReported = false;
 
-  const pty = nodePty.spawn(shell.command, shell.args, {
-    name: "xterm-256color",
-    cols,
-    rows,
-    cwd: process.cwd(),
-    env: process.env as Record<string, string>,
-  });
+  let pty: nodePty.IPty;
+  try {
+    pty = nodePty.spawn(shell.command, shell.args, {
+      name: "xterm-256color",
+      cols,
+      rows,
+      cwd: process.cwd(),
+      env: process.env as Record<string, string>,
+    });
+  } catch (err) {
+    options.log(`spawn failed: ${describeSpawnError(err, shell.command)}`);
+    process.exitCode = 1;
+    ws.close();
+    return;
+  }
 
   const sendToDaemon = (message: Record<string, unknown>): boolean => {
     if (!remoteAlive) return false;

@@ -1,0 +1,112 @@
+name: Mac spawn smoke
+
+# Manual pre-deploy check that node-pty actually spawns shells on real macOS
+# hardware (the path behind "spawn failed: posix_spawnp failed"). Runs on
+# demand (or on branches matching test/mac-*) - never on tags, never deploys.
+#
+# The mac-repro job is the baseline (currently fails at unit tests with
+# posix_spawnp failed). The two mac-fix-* jobs test candidate fixes in
+# parallel so one push gives a definitive answer:
+#   mac-fix-chmod   - re-chmod the prebuilt spawn-helper, then re-test
+#   mac-fix-rebuild - compile node-pty from source, then re-test
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "test/mac-*"
+
+jobs:
+  mac-repro:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Diagnose spawn-helper
+        run: |
+          echo "--- arch ---"
+          uname -m
+          node -p "process.arch + ' ' + process.version"
+          echo "--- helper candidates ---"
+          ls -la node_modules/node-pty/prebuilds/darwin-arm64/ || true
+          ls -la node_modules/node-pty/prebuilds/darwin-x64/ || true
+          ls -la node_modules/node-pty/build/Release/ 2>/dev/null || echo "(no build/Release - using prebuilds)"
+          echo "--- file types ---"
+          file node_modules/node-pty/prebuilds/darwin-*/spawn-helper node_modules/node-pty/prebuilds/darwin-*/pty.node || true
+          echo "--- quarantine attrs ---"
+          xattr -l node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper || echo "(no xattrs)"
+          echo "--- direct exec probe ---"
+          node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper /tmp true; echo "direct exit: $?"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Mac spawn smoke (helper + zsh pty + CLI)
+        run: node scripts/mac-spawn-smoke.mjs
+
+  mac-fix-chmod:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Re-chmod prebuilt spawn-helper
+        run: |
+          chmod -v +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper
+          ls -la node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Mac spawn smoke (helper + zsh pty + CLI)
+        run: node scripts/mac-spawn-smoke.mjs
+
+  mac-fix-rebuild:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Rebuild node-pty from source
+        run: npm rebuild node-pty
+
+      - name: Show what the rebuild produced
+        run: |
+          ls -la node_modules/node-pty/build/Release/ || true
+          file node_modules/node-pty/build/Release/spawn-helper || true
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Mac spawn smoke (helper + zsh pty + CLI)
+        run: node scripts/mac-spawn-smoke.mjs

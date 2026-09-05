@@ -2,6 +2,7 @@ import * as nodePty from "node-pty";
 import os from "node:os";
 import { randomId } from "rcmdsh-core";
 import type { ShellDef } from "./shells";
+import { describeSpawnError } from "./spawnEnv";
 
 const SCROLLBACK_BYTES = 128 * 1024;
 const OUTPUT_FLUSH_MS = 16;
@@ -199,13 +200,18 @@ export class SessionManager {
       }
     }
     const id = randomId();
-    const ptyProcess = nodePty.spawn(shell.command, shell.args, {
-      name: "xterm-256color",
-      cols: options.cols,
-      rows: options.rows,
-      cwd: os.homedir(),
-      env: process.env as Record<string, string>,
-    });
+    let ptyProcess: nodePty.IPty;
+    try {
+      ptyProcess = nodePty.spawn(shell.command, shell.args, {
+        name: "xterm-256color",
+        cols: options.cols,
+        rows: options.rows,
+        cwd: os.homedir(),
+        env: process.env as Record<string, string>,
+      });
+    } catch (err) {
+      throw new Error(describeSpawnError(err, shell.command));
+    }
     const session = new Session(id, shell.id, ptyProcess, this.events, options.cols, options.rows);
     this.sessions.set(id, session);
     return session;
