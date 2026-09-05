@@ -13,7 +13,7 @@ import { Tui } from "./tui/Tui";
 import { pairWithRelay, isPairedFor, normalizeRelayBase, httpBase, requestPairing, awaitPairingClaim } from "./pair";
 import { detectLanIp, lanIpCandidates } from "./net";
 
-const VERSION = "0.3.9";
+const VERSION = "0.3.10";
 const DEFAULT_HOSTED_RELAY = "https://rcmdsh.vendroid.dev";
 const DEFAULT_PORT = 8787;
 
