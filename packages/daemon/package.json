@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "postinstall": "node scripts/fix-spawn-helper.mjs"
+    "postinstall": "node scripts/fix-spawn-helper.mjs || exit 0"
   },
   "dependencies": {
     "rcmdsh-relay": "^0.3.11",
