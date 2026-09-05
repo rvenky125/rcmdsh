@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { BannerAd } from "../components/BannerAd";
 import { newClientKeyPair, savePairing, type PairingState } from "../lib/store";
 
 interface PairScreenProps {
@@ -182,7 +181,6 @@ export function PairScreen({ onPaired }: PairScreenProps) {
       <button className="linklike" onClick={() => setDevMode(!devMode)}>
         {devMode ? "Use pairing code" : "Developer mode (dev token)"}
       </button>
-      <BannerAd />
     </div>
   );
 }

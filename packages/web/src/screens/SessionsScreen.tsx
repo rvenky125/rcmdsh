@@ -1,5 +1,4 @@
 import type { SessionInfo, ShellInfo } from "rcmdsh-core";
-import { BannerAd } from "../components/BannerAd";
 import type { RelaySocket } from "../lib/ws";
 import type { ConnectionStatus } from "../lib/ws";
 
@@ -119,7 +118,6 @@ export function SessionsScreen({
           </ul>
         </section>
       )}
-      <BannerAd />
     </div>
   );
 }

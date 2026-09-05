@@ -28,7 +28,7 @@ export default defineConfig({
       workbox: {
         navigateFallback: "/index.html",
         // The app is hash-routed, so every real navigation targets "/" — any
-        // path with a file extension (ads.txt, icon.svg, ...) is a real file
+        // path with a file extension (icon.svg, ...) is a real file
         // and must be fetched from the server, not answered with the shell.
         navigateFallbackDenylist: [/\/[^/]+\.[a-zA-Z0-9]+$/],
         globPatterns: ["**/*.{js,css,html,svg,woff2}"],
