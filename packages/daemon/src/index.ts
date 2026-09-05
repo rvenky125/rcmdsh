@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { startRelay } from "rcmdsh-relay/dist/server";
 import { loadConfig, saveConfig, getConfigDir } from "./config";
 import { SHELL_CATALOG, allowedShellsForPlatform } from "./pty/shells";
+import { ensureSpawnHelper } from "./pty/spawnEnv";
 import { DaemonApp } from "./app";
 import { runAttach } from "./attach/AttachClient";
 import { Tui } from "./tui/Tui";
@@ -45,6 +46,10 @@ async function runDefault(options: {
   tui?: boolean;
 }): Promise<void> {
   const log = makeLogger();
+  const spawnCheck = ensureSpawnHelper({ log });
+  if (!spawnCheck.ok) {
+    log(`warning: ${spawnCheck.message} (sessions may fail to spawn)`);
+  }
   const config = loadConfig();
   if (options.name) {
     config.name = options.name;

@@ -1,0 +1,33 @@
+name: Mac spawn smoke
+
+# Manual pre-deploy check that node-pty actually spawns shells on real macOS
+# hardware (the path behind "spawn failed: posix_spawnp failed"). Runs on
+# demand (or on branches matching test/mac-*) - never on tags, never deploys.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "test/mac-*"
+
+jobs:
+  mac-spawn:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Mac spawn smoke (helper + zsh pty + CLI)
+        run: node scripts/mac-spawn-smoke.mjs
