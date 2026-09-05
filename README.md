@@ -8,6 +8,20 @@ Phone (PWA) --wss-->  Relay Server  <--wss--  Your Computer
 
 Both sides dial **out** to the relay, so there's no port forwarding, no VPN, no SSH keys. Phone ↔ computer traffic is **end-to-end encrypted** — the relay only forwards ciphertext.
 
+## Use it from anywhere (not just your WiFi)
+
+```bash
+npx rcmdsh connect
+```
+
+This connects your computer through a **hosted relay** instead of the built-in one. Scan the QR, and your phone can reach your computer from cellular, the office, anywhere.
+
+To use your own hosted relay:
+
+```bash
+npx rcmdsh connect --relay https://my-relay.example.com
+```
+
 ## Quick start (30 seconds)
 
 On your computer (Windows / macOS / Linux):
@@ -25,20 +39,6 @@ That single command:
 Scan the QR with your phone (same WiFi) → the app pairs automatically → pick a shell (PowerShell, cmd, bash, zsh) → you're in a live terminal.
 
 Run it again any time — it reuses the relay and remembers your phone.
-
-## Use it from anywhere (not just your WiFi)
-
-```bash
-npx rcmdsh connect
-```
-
-This connects your computer through a **hosted relay** instead of the built-in one. Scan the QR, and your phone can reach your computer from cellular, the office, anywhere.
-
-To use your own hosted relay:
-
-```bash
-npx rcmdsh connect --relay https://my-relay.example.com
-```
 
 > Hosting your own public relay? Deploy the server (below), then change `DEFAULT_HOSTED_RELAY` in `packages/daemon/src/index.ts` before publishing your fork, or just pass `--relay` each time.
 
