@@ -96,7 +96,8 @@ export function describeSpawnError(
   if (platform === "darwin" && /posix_spawnp failed/.test(base)) {
     return (
       `${base} the shell "${shellCommand}" never launched - node-pty's ` +
-      `spawn-helper could not start (missing or not executable; see the daemon startup logs)`
+      `spawn-helper could not start (it ships without the executable bit; ` +
+      `reinstall rcmdsh or run: chmod +x <node-pty>/prebuilds/darwin-<arch>/spawn-helper)`
     );
   }
   return `${base} could not launch shell "${shellCommand}" - is it installed and on PATH?`;

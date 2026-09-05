@@ -19,7 +19,8 @@
   },
   "files": [
     "dist",
-    "public"
+    "public",
+    "scripts/fix-spawn-helper.mjs"
   ],
   "keywords": [
     "terminal",
@@ -30,7 +31,8 @@
     "qr"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "postinstall": "node scripts/fix-spawn-helper.mjs"
   },
   "dependencies": {
     "rcmdsh-relay": "^0.3.9",
