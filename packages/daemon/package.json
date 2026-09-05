@@ -1,6 +1,6 @@
 {
   "name": "rcmdsh",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Control your computer's shell from your phone - one command, one QR code",
   "license": "MIT",
   "repository": {
@@ -35,8 +35,8 @@
     "postinstall": "node scripts/fix-spawn-helper.mjs"
   },
   "dependencies": {
-    "rcmdsh-relay": "^0.3.10",
-    "rcmdsh-core": "^0.3.10",
+    "rcmdsh-relay": "^0.3.11",
+    "rcmdsh-core": "^0.3.11",
     "commander": "^13.0.0",
     "node-pty": "^1.0.0",
     "qrcode-terminal": "^0.12.0",
