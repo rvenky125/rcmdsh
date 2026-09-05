@@ -60,8 +60,26 @@ await check("node runs on darwin", () => `${process.platform}-${process.arch} no
 await check("spawn-helper exists and is executable", () => findHelper());
 
 await check("spawn-helper executes", () => {
-  const probe = spawnSync(findHelper(), [], { timeout: 5000 });
+  const helper = findHelper();
+  const probe = spawnSync(helper, [os.tmpdir(), "true"], { timeout: 5000 });
   if (probe.error) throw probe.error;
+  const probeX64 = { status: null };
+  if (probe.status !== 0 && process.arch === "arm64") {
+    const alt = path.join(nodePtyDir(), "prebuilds", "darwin-x64", "spawn-helper");
+    if (fs.existsSync(alt)) {
+      const retry = spawnSync(alt, [os.tmpdir(), "true"], { timeout: 5000 });
+      if (!retry.error && retry.status === 0) {
+        return `arm64 helper exit ${probe.status}, x64 fallback exit 0 (${alt})`;
+      }
+      probeX64.status = retry.status;
+    }
+  }
+  if (probe.status !== 0)
+    throw new Error(
+      `exit ${probe.status} signal ${probe.signal ?? "none"}` +
+        (probeX64.status !== null ? `, x64 fallback exit ${probeX64.status}` : "") +
+        (probe.stderr?.length ? ` stderr: ${probe.stderr}` : ""),
+    );
   return `exit ${probe.status}`;
 });
 

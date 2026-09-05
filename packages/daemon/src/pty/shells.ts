@@ -29,3 +29,18 @@ export function allowedShellsForPlatform(allowedIds: string[], platform: NodeJS.
     .map((id) => available.find((shell) => shell.id === id))
     .filter((shell): shell is ShellDef => shell !== null);
 }
+
+// The shell a fresh terminal should prefer on each platform. Catalog order
+// alone can't express this (darwin wants zsh first, linux wants bash first),
+// and picking shellsForPlatform()[0] put pwsh first on both - pwsh usually
+// isn't even installed on a Mac.
+export function defaultShellForPlatform(platform: NodeJS.Platform = process.platform): ShellDef | null {
+  const preferred =
+    platform === "win32" ? "powershell" : platform === "darwin" ? "zsh" : "bash";
+  return (
+    getShellDef(preferred, platform) ??
+    shellsForPlatform(platform).find((shell) => shell.id !== "pwsh") ??
+    shellsForPlatform(platform)[0] ??
+    null
+  );
+}
